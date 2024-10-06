@@ -19,12 +19,16 @@ BANKS 14
 .ENDRO
 
 .enum $C000 export
-_RAM_C000_ db
-_RAM_C001_ db
+_RAM_C000_GAME_NR db		;This is the selected game number.
+	;; 0 is Centipede
+	;; 1 is Breakout
+	;; 02 is Missile Command
+	;; 03 and onwards is the name entry screen.
+_RAM_C001_GAME_NR_BCKP db			;Also used with some game selection, but mostly just a copy of the original number. I'll mark it as Game Nr backup or something.
 _RAM_C002_ db
 _RAM_C003_ db
 _RAM_C004_ db
-_RAM_C005_ db
+_RAM_C005__NR_PLAYERS db
 _RAM_C006_ db
 _RAM_C007_ db
 _RAM_C008_ db
@@ -97,7 +101,7 @@ _RAM_C056_ dw
 _RAM_C058_ db
 _RAM_C059_ dw
 _RAM_C05B_ dw
-_RAM_C05D_ db
+_RAM_C05D_JOYPAD1 db
 _RAM_C05E_ db
 _RAM_C05F_ db
 _RAM_C060_ db
@@ -149,7 +153,7 @@ _RAM_C090_ db
 _RAM_C091_ db
 _RAM_C092_ db
 _RAM_C093_ db
-_RAM_C094_ db
+_RAM_C094_XTRA_CREDITS db
 _RAM_C095_ db
 _RAM_C096_ db
 _RAM_C097_ db
@@ -399,7 +403,7 @@ _RAM_FFFF_ db
 .BANK 0 SLOT 0
 .ORG $0000
 
-; 2nd entry of Jump Table from 59F (indexed by _RAM_C000_)
+; 2nd entry of Jump Table from 59F (indexed by _RAM_C000_GAME_NR)
 _LABEL_0_:
 	di
 	ld sp, $DFEC
@@ -428,8 +432,9 @@ _DATA_14_:
 _DATA_16_:
 .db $00 $00
 
-_LABEL_18_:
+_LABEL_18_:			;This is called with rst $18, but basically points to a bankswitch routine.
 	jp _LABEL_50_
+	
 
 ; Data from 1B to 23 (9 bytes)
 .dsb 9, $00
@@ -453,6 +458,8 @@ _LABEL_38_:
 _LABEL_47_:
 	in a, (Port_VDPStatus)
 	in a, (_PORT_C1_)		;Read VDP port, and then the IO Port B\IO misc register.
+				;What I dont understand is that why was this necessary? Maybe this is not even used anywhere, but apart from the Status clearing, this does not serce much of a purpose.
+	;Whatever.
 	pop de
 	pop hl
 	pop af
@@ -460,10 +467,12 @@ _LABEL_47_:
 	ret
 
 _LABEL_50_:
+	;; I forgot to include E in the equation. We receive e before jumping here.
 	push af
 	ld a, (_DATA_16_)
 	or e
 	ld (_RAM_FFFF_), a
+	;; So, we receive the bank number from E, and then OR it with A. Since A is zero always (as Data_16 has all zeroes there.), there's no problem here. Maybe during development, there were other banks, that were outside the scope of the normal Sega mapper, and used by some RAM device or something like that.
 	pop af
 	ret
 
@@ -476,7 +485,7 @@ _LABEL_66_:
 ; Data from 69 to 85 (29 bytes)
 .db $00 $22 $85 $00 $31 $8F $00 $F5 $E1 $DB $DD $CB $67 $CA $00 $00
 .db $E5 $F1 $2A $85 $00 $ED $7B $87 $00 $C3 $BD $00 $00
-
+	;; Some of these unused code are not even disassebles correctly. Really a lot of real estate for new code, hacks or anything.
 ; Data from 86 to 8B (6 bytes)
 _DATA_86_:
 .db $00 $00 $00 $00 $00 $00
@@ -489,7 +498,7 @@ _DATA_8C_:
 _DATA_8E_:
 .db $00 $00 $00
 
-_LABEL_91_:
+_LABEL_91_:			;This is definetly unused, nothing references this. Like half-a-VDP Address writing.
 	or $40
 	out (Port_VDPAddress), a
 	ei
@@ -535,7 +544,7 @@ _DATA_18E_:
 .db $02 $CD $0E $02 $6B $CD $0E $02 $63 $22 $09 $02 $7A $32 $E1 $00
 .db $F1 $08 $E1 $7C $ED $47 $7D $ED
 
-; 1st entry of Pointer Table from 11D3 (indexed by _RAM_C000_)
+; 1st entry of Pointer Table from 11D3 (indexed by _RAM_C000_GAME_NR)
 ; Data from 1F6 to 1FF (10 bytes)
 _DATA_1F6_:
 .db $4F $F1 $FD $E1 $DD $E1 $C1 $D1 $E1 $D9
@@ -560,18 +569,18 @@ _DATA_201_:
 _LABEL_275_CODE_ENTRY_POINT:
 	xor a
 	im 1
-	ld (_RAM_FFFC_), a
+	ld (_RAM_FFFC_), a	;Disable everything mostly.
 	ld (_RAM_FFFD_), a
 	inc a
-	ld (_RAM_FFFE_), a
+	ld (_RAM_FFFE_), a	;These are just small memory setups, totally usual stuff.
 	inc a
-	ld (_RAM_FFFF_), a
+	ld (_RAM_FFFF_), a	;Set up normal mapping, Slot 0-1-2 is mapped in one continous space.
 	in a, (Port_VDPStatus)
 	ld hl, $0000
-	ld (_RAM_DFEE_), hl
+	ld (_RAM_DFEE_), hl	;I wonder what's this for later. Like what this pointer is.
 	ld a, (_DATA_7_DEBUG_BYTE)
 	or a
-	jp nz, _LABEL_400_
+	jp nz, _LABEL_400_	;So, this is interesting. The Data byte is one, so this jump is always taken. Not that it would matter, since if the branch is not taken, the below is just a whole lot of NOPs, most probably there was development\debug code, that is not there anymore. Its interesting though.
 	nop
 	nop
 	nop
@@ -935,130 +944,159 @@ _LABEL_275_CODE_ENTRY_POINT:
 	nop
 	nop
 	nop
-_LABEL_400_:
+_LABEL_400_:			;Sooo, as you can see this whole nops are just padding, not contributing much, since we jump here anyways.
 	di
 	im 1
 	ld sp, $DE00
-	call _LABEL_A7A_
-	ld a, $A8
+	call _LABEL_A7A_1SEC_DELAY	;We init a one sec delay for some reason. B has $02 in it.
+	ld a, $A8			;10101000
+	;; This is a simple memory setup:
+	;; Disable external stuff (I already forgot what it is.)
+	;; Enable Cartridge
+	;; Enable internal RAM.
+	;; Maybe not in this exact order, but this is that this port sets up.
 	out (Port_MemoryControl), a
-	ld a, $FF
+	ld a, $FF			;No idea what's this, but we send data to the control port.
 	out (Port_IOPortControl), a
-	call _LABEL_3319_
+	call _LABEL_3319_DISABLE_PSG		;This is muting the PSG.
 	in a, (Port_VDPStatus)
 	ld hl, _DATA_2A0B_
 	ld de, _RAM_DA5B_
 	ld bc, $00E1
-	ldir
+	ldir			;Some data loading, not sure what exactly.
 _LABEL_421_:
 	di
 	ld sp, $DE00
 	in a, (Port_VDPStatus)
-	ld hl, _RAM_C000_
-	ld de, _RAM_C000_ + 1
+	ld hl, _RAM_C000_GAME_NR
+	ld de, _RAM_C000_GAME_NR + 1
 	ld bc, $1A5B
 	ld (hl), l
-	ldir
+	ldir			;This is just RAM clearing.
 	ld hl, _LABEL_6710_	; Loading Code into RAM
 	ld de, _RAM_D800_
 	ld bc, $025B
-	ldir
+	ldir			;From a quick look at the source, it looks like a sound engine.
 	xor a
 	ld (_RAM_C088_), a
-	ld (_RAM_C094_), a
-	call _LABEL_FF6_
-	ld a, (_RAM_C05D_)
-	cp $16
-	jp nz, _LABEL_458_
+	ld (_RAM_C094_XTRA_CREDITS), a ;No extra credits for us now.
+	call _LABEL_FF6_JOYPAD
+	ld a, (_RAM_C05D_JOYPAD1)
+	cp $16			;Check if the right buttons were pressed.
+	jp nz, _LABEL_458_	;So, this is for the extra credits.
 	ld a, $01
-	ld (_RAM_C094_), a
-	call _LABEL_A7A_
+	ld (_RAM_C094_XTRA_CREDITS), a
+	call _LABEL_A7A_1SEC_DELAY ;I mean this small part.
 _LABEL_458_:
 	ld a, $01
-	ld (_RAM_C000_), a
-	ld (_RAM_C001_), a
+	ld (_RAM_C000_GAME_NR), a
+				;So, this is the game nr the player goes to.
+	ld (_RAM_C001_GAME_NR_BCKP), a	
 	ld hl, _LABEL_F30_
 	ld (_RAM_DFEE_), hl
 	ld hl, $62CE
-	call _LABEL_341F_
+	call _LABEL_341F_	;HL to D970 and 71. Why this was not simply written here is beyond me.
 	call _LABEL_3428_
+
+	;; This is what the above does, inits some stuff, but nothin else.
+	;; Also, getting my comments in emacs are not easy every time.
+;;	_LABEL_3428_
+;;	ld a, $38
+;;	ld (_RAM_DA42_), a
+;;	xor a
+;;	ld (_RAM_D982_), a
+;;	ld (_RAM_D9BB_), a
+;;	ld (_RAM_D9F8_), a
+;;	ld (_RAM_DA35_), a
+;;	inc a
+;;	ld (_RAM_D975_), a
+;;	ret
+	;;
+
+	;; i was here.
 	xor a
 	ld (_RAM_C04D_), a
-	call _LABEL_6F1_
-	call _LABEL_72F_
-	call _LABEL_73D_
-	call _LABEL_F92_
+	call _LABEL_6F1_STP_VDPREG1_D_DISPLAY ; I know it's a bit long, but this basically sets some VDP Register 1 stuff, and disables the screen. We will do later some VDP housekeeping, and with the display on, it would show some glitches.
+	call _LABEL_72F_CLEAR_VRAM	      ;What it says on the tin.
+	call _LABEL_73D_CLEAR_C5C9	;Clears RAM from $C5C9 $bf bytes, 191 bytes.
+	call _LABEL_F92_VDP_REG_SETUP	;Does a fairly basic VDP register setup.
 	ld a, $04
 	ld (_RAM_C09A_), a
-	ld a, $01
-	ld (_RAM_C005_), a
-	call _LABEL_69FB_
-_LABEL_48C_:
+	ld a, $01	   ;Nr. of players.
+	ld (_RAM_C005__NR_PLAYERS), a	;These will be investigated later in what they do.
+	call _LABEL_69FB_LEGAL_SCR1	;This is the legal screen that starts before anything else. At least this is what it seems so far. Also, this is the first one, the second is after the three demos, then it shows the company who coded this game, along with the possible extra credits.
+_LABEL_48C_:				;We finally found some main loop? Could be.
 	ld sp, $DE00
 	xor a
 	ld (_RAM_C093_), a
-	call _LABEL_1A9E_
+	call _LABEL_1A9E_MAIN_MENU_ENTRY	;This is the main menu's entry point. Of course, if we disable this, then the game will go straight into breakout, as that's the game the menu defaults to.
 	jp z, _LABEL_52E_
+	;; So, if the below is disabled, then when the player pushes a button to start a game, any game, then only the Centipede demo will start.
 	xor a
-	ld (_RAM_C000_), a
+	ld (_RAM_C000_GAME_NR), a
 	ld b, $00
-	call _LABEL_11B5_
-	ld b, $08
-_LABEL_4A4_:
+	call _LABEL_11B5_	;The points intro will be messed up, if this is disabled.
+	ld b, $08		;Okay! This B controls how many screens are shown BEFORE the Centipede demo starts. These screens show how many points each creature worth when shot.
+_LABEL_4A4_SHOW_POINT_PICS_CENTIPEDE:
+	;; I got this now: This part is the Centipede point screen per monster, where the game tells you how many points worth each of them, but i've already stated this.
 	push bc
 	ld a, b
 	dec a
-	call $8DF1	; Possibly invalid
-	call _LABEL_103F_
-	jp z, _LABEL_4B4_
+	call _LABEL_8DF1_ ;$8DF1
+	;; Disabling does nothing noticeable.
+	;; Sometimes the disassy is not okay, as this is definetly good stuff here.
+	call _LABEL_103F_OR_C093
+	;; I have to check later what does this $C093 memory address do.
+	jp z, _LABEL_4B4_	;Now, this with the above, this all makes more sense.
 	pop bc
-	jp _LABEL_48C_
+	jp _LABEL_48C_		;And jump back to the beginning.
 
 _LABEL_4B4_:
 	pop bc
-	djnz _LABEL_4A4_
+	djnz _LABEL_4A4_SHOW_POINT_PICS_CENTIPEDE	;If this B is not zero, then simply loop back.
+	;; I wonder what B does exactly, but I think, this may be some timer to time the game demos.
 	ld a, $00
 	call _LABEL_559_
-	call _LABEL_103F_
+	call _LABEL_103F_OR_C093
 	jp nz, _LABEL_48C_
 	ld a, $00
 	call _LABEL_2880_
-	call _LABEL_103F_
+	call _LABEL_103F_OR_C093
 	jp nz, _LABEL_48C_
 	ld a, $01
-	ld (_RAM_C000_), a
+	ld (_RAM_C000_GAME_NR), a
 	ld b, $00
 	call _LABEL_11B5_
 	call $8FA2	; Possibly invalid
-	call _LABEL_103F_
+	call _LABEL_103F_OR_C093
 	jp nz, _LABEL_48C_
 	ld a, $01
 	call _LABEL_559_
-	call _LABEL_103F_
+	call _LABEL_103F_OR_C093
 	jp nz, _LABEL_48C_
 	ld a, $01
 	call _LABEL_2880_
-	call _LABEL_103F_
+	call _LABEL_103F_OR_C093
 	jp nz, _LABEL_48C_
 	ld a, $02
-	ld (_RAM_C000_), a
+	ld (_RAM_C000_GAME_NR), a
 	ld b, $00
 	call _LABEL_11B5_
 	call $930C	; Possibly invalid
-	call _LABEL_103F_
+	call _LABEL_103F_OR_C093
 	jp nz, _LABEL_48C_
 	ld a, $02
 	call _LABEL_559_
-	call _LABEL_103F_
+	call _LABEL_103F_OR_C093
 	jp nz, _LABEL_48C_
 	ld a, $02
 	call _LABEL_2880_
-	call _LABEL_103F_
+	call _LABEL_103F_OR_C093
 	jp nz, _LABEL_48C_
 	call _LABEL_2BAF_
-	call _LABEL_103F_
+	call _LABEL_103F_OR_C093
 	jp nz, _LABEL_48C_
-	call _LABEL_1034_
+	call _LABEL_1034_PADPRESSD
 	jp z, _LABEL_48C_
 _LABEL_52E_:
 	xor a
@@ -1066,7 +1104,7 @@ _LABEL_52E_:
 	call _LABEL_3087_
 	ld a, (_RAM_C09A_)
 	ld (_RAM_C021_), a
-	ld a, (_RAM_C094_)
+	ld a, (_RAM_C094_XTRA_CREDITS)
 	or a
 	jp z, _LABEL_547_
 	ld a, $FF
@@ -1075,21 +1113,21 @@ _LABEL_547_:
 	call _LABEL_58A_
 	call _LABEL_2D88_
 	call _LABEL_323B_
-	ld a, (_RAM_C000_)
+	ld a, (_RAM_C000_GAME_NR)
 	call _LABEL_2880_
 	jp _LABEL_48C_
 
 _LABEL_559_:
-	ld (_RAM_C000_), a
+	ld (_RAM_C000_GAME_NR), a ;We get the game type.
 	add a, a
-	ld l, a
-	ld h, $00
+	ld l, a			;The number will be used as the lower number of some sorts of pointer.
+	ld h, $00		;The high bit is zero for now.
 	ld de, _DATA_584_
-	add hl, de
+	add hl, de		;We have the complete pointer, pretty standard stuff.
 	ld e, (hl)
 	inc hl
-	ld d, (hl)
-	ld (_RAM_C08B_), de
+	ld d, (hl)		;Read from HL, and load into DE.
+	ld (_RAM_C08B_), de	;Put this into a pointer val in RAM.
 	ld hl, $0400
 	ld (_RAM_C089_), hl
 	ld a, $01
@@ -1097,10 +1135,10 @@ _LABEL_559_:
 	ld a, $04
 	ld (_RAM_C021_), a
 	ld a, $01
-	ld (_RAM_C005_), a
+	ld (_RAM_C005__NR_PLAYERS), a
 	call _LABEL_58A_
 	ret
-
+	;; Maybe this sets up some stuff for the game demo. We check a game number, set up pointers, and could be using some input data as well. Maybe.
 ; Data from 584 to 589 (6 bytes)
 _DATA_584_:
 .db $80 $1C $80 $20 $80 $24
@@ -1109,33 +1147,33 @@ _LABEL_58A_:
 	ld b, $00
 	call _LABEL_11B5_
 	call _LABEL_1149_
-	ld a, (_RAM_C000_)
+	ld a, (_RAM_C000_GAME_NR)
 	ld hl, _DATA_59F_
 	call _LABEL_759_
-	call _LABEL_3319_
+	call _LABEL_3319_DISABLE_PSG
 	ret
 
-; Jump Table from 59F to 5A2 (2 entries, indexed by _RAM_C000_)
+; Jump Table from 59F to 5A2 (2 entries, indexed by _RAM_C000_GAME_NR)
 _DATA_59F_:
 .dw _LABEL_5A5_ $8000
 
 ; Data from 5A3 to 5A4 (2 bytes)
 .db $00 $80
 
-; 1st entry of Jump Table from 59F (indexed by _RAM_C000_)
+; 1st entry of Jump Table from 59F (indexed by _RAM_C000_GAME_NR)
 _LABEL_5A5_:
 	call $8E61	; Possibly invalid
 	ld a, (_RAM_C088_)
 	or a
 	jp z, _LABEL_5B3_
-	call _LABEL_103F_
+	call _LABEL_103F_OR_C093
 	ret nz
 _LABEL_5B3_:
-	call _LABEL_6F1_
+	call _LABEL_6F1_STP_VDPREG1_D_DISPLAY
 	ld a, $01
 	call _LABEL_18A6_
 	call _LABEL_BF7_
-	call _LABEL_73D_
+	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_
 	call _LABEL_1149_
 	call _LABEL_8000_CENTIPEDE_ENTRYPOINT;_LABEL_0_		;How did this end up here? It caused some errors with the whole code.
@@ -1154,7 +1192,7 @@ _LABEL_5B3_:
 	call $8DCC	; Possibly invalid
 	call _LABEL_777_
 	call _LABEL_7E7_
-	call _LABEL_F92_
+	call _LABEL_F92_VDP_REG_SETUP
 	xor a
 	call _LABEL_18C7_
 	call _LABEL_C46_
@@ -1179,7 +1217,7 @@ _LABEL_615_:
 	call _LABEL_D7D_
 	call _LABEL_326B_
 	ld b, $01
-	ld a, (_RAM_C005_)
+	ld a, (_RAM_C005__NR_PLAYERS)
 	cp $02
 	jp nz, _LABEL_63D_
 	inc b
@@ -1276,14 +1314,17 @@ _LABEL_6E2_:
 	pop de
 	ret
 
-_LABEL_6F1_:
-	call _LABEL_FB4_
-	ld a, $A0
+_LABEL_6F1_STP_VDPREG1_D_DISPLAY:
+	call _LABEL_FB4_WAIT4VBLANK
+	ld a, $A0		;1010 0000
 	out (Port_VDPAddress), a
 	push af
 	pop af
-	ld a, $81
+	ld a, $81		;1000 0001
 	out (Port_VDPAddress), a
+	;; This writes to VDP Register 1.
+	;; Enables Frame interrupts, disables screen rendering.
+	;; Normal sprite sizes and everything.
 	ret
 
 _LABEL_6FF_:
@@ -1319,14 +1360,15 @@ _LABEL_712_:
 .db $01 $00 $03 $21 $89 $C6 $73 $23 $72 $23 $13 $0B $78 $B1 $C2 $23
 .db $07 $C9
 
-_LABEL_72F_:
-	call _LABEL_FB4_
+_LABEL_72F_CLEAR_VRAM:
+	;; From the looks of it, this waits until we are in VBlank, then to some data transfer. 16k, so I presume the whol VRAM will be blanked.
+	call _LABEL_FB4_WAIT4VBLANK
 	ld de, $0000
 	ld bc, $4000
 	ld h, $00
-	jp _LABEL_A02_
+	jp _LABEL_A02_		;This does a loop of VDP writes, so this is really a clear VBlank code.
 
-_LABEL_73D_:
+_LABEL_73D_CLEAR_C5C9:
 	ld hl, _RAM_C5C9_
 	ld de, _RAM_C5C9_ + 1
 	ld bc, $00BF
@@ -1778,7 +1820,7 @@ _LABEL_A1C_:
 	ret
 
 _LABEL_A2B_:
-	call _LABEL_FB4_
+	call _LABEL_FB4_WAIT4VBLANK
 	ld a, e
 	out (Port_VDPAddress), a
 	ld a, d
@@ -1800,17 +1842,17 @@ _LABEL_A36_:
 .db $41 $0E $BE $ED $A3 $00 $20 $FB $EB $01 $40 $00 $09 $EB $C1 $10
 .db $E6 $C9 $7B $D3 $BF $7A $D3 $BF $C9
 
-_LABEL_A7A_:
-	ld b, $02
+_LABEL_A7A_1SEC_DELAY:
+	ld b, $02		;So, only this does anything useful, loads a number.
 _LABEL_A7C_:
 	ld de, $FFFF
-_LABEL_A7F_:
+_LABEL_A7F_1SEC_DELAY:
 	dec de
 	ld a, d
 	or e
-	jr nz, _LABEL_A7F_
+	jr nz, _LABEL_A7F_1SEC_DELAY
 	djnz _LABEL_A7C_
-	ret
+	ret			;Well, this is good as well, it's a timer, most likely a normal delay. The game uses it in a few places, but mostly in this place to give enough time to press some buttons, to later show some hidden credits. I don't know why not showing the people who made the game any good, but whatever.
 
 ; Data from A87 to A9D (23 bytes)
 .db $11 $00 $7F $01 $40 $00 $26 $E0 $C3 $02 $0A $11 $00 $78 $01 $80
@@ -1927,7 +1969,7 @@ _LABEL_B54_:
 .db $AF $CD $F3 $0D $23 $04 $C3 $7B $0B
 
 _LABEL_B8E_:
-	call _LABEL_3319_
+	call _LABEL_3319_DISABLE_PSG
 	ld hl, _RAM_C042_
 	ld (hl), $01
 	ld b, a
@@ -2474,7 +2516,7 @@ _LABEL_ED0_:
 
 _LABEL_F08_:
 	push af
-	call _LABEL_FB4_
+	call _LABEL_FB4_WAIT4VBLANK
 	ld de, $C000
 	ld a, e
 	out (Port_VDPAddress), a
@@ -2541,7 +2583,7 @@ _LABEL_F58_:
 
 _LABEL_F6F_:
 	ld e, $0A
-	rst $18	; _LABEL_18_
+	rst $18	; _LABEL_18_ BANKSWITCH TO BANK A\10.
 	ld hl, (_RAM_C076_)
 	ld de, (_RAM_C04F_)
 	add hl, de
@@ -2558,8 +2600,8 @@ _LABEL_F6F_:
 	call _LABEL_11B5_
 	ret
 
-_LABEL_F92_:
-	call _LABEL_FB4_
+_LABEL_F92_VDP_REG_SETUP:
+	call _LABEL_FB4_WAIT4VBLANK
 	ld d, $80
 	ld b, $0B
 	ld hl, _DATA_FA9_
@@ -2579,12 +2621,12 @@ _LABEL_F9C_:
 _DATA_FA9_:
 .db $B4 $E8 $FF $FF $FF $FF $FF $00 $00 $00 $FF
 
-_LABEL_FB4_:
+_LABEL_FB4_WAIT4VBLANK:			;This waits for VBLank.
 	di
 	ex af, af'
 	in a, (Port_VDPStatus)
 	and a
-	jp p, _LABEL_FB4_
+	jp p, _LABEL_FB4_WAIT4VBLANK
 	ex af, af'
 	ret
 
@@ -2603,13 +2645,13 @@ _LABEL_FBE_:
 	rl b
 	rl c
 	ld d, a
-	ld a, (_RAM_C05D_)
+	ld a, (_RAM_C05D_JOYPAD1)
 	ld (_RAM_C05E_), a
 	xor d
 	and d
 	ld (_RAM_C05F_), a
 	ld a, d
-	ld (_RAM_C05D_), a
+	ld (_RAM_C05D_JOYPAD1), a
 	ld a, (_RAM_C060_)
 	ld (_RAM_C061_), a
 	xor c
@@ -2620,15 +2662,18 @@ _LABEL_FBE_:
 	ld a, d
 	ret
 
-_LABEL_FF6_:
+_LABEL_FF6_JOYPAD:			;Last time, this was still a gamepad reading routine.
 	ld a, (_RAM_C088_)
 	or a
-	jp nz, _LABEL_1044_
+	jp nz, _LABEL_1044_	;When we start the game, this will be zero.
+	;; No idea about this ram value. Will check later.
 	in a, (Port_IOPort1)
 	ld b, a
 	ld e, a
 	in a, (Port_IOPort2)
 	ld c, a
+	;; B and E has port 1
+	;; C has port 2
 	ld a, e
 	rl b
 	rl c
@@ -2641,40 +2686,41 @@ _LABEL_FF6_:
 	ld a, c
 	cpl
 	ld c, a
-	ld a, (_RAM_C05D_)
+	ld a, (_RAM_C05D_JOYPAD1)
 	ld (_RAM_C05E_), a
 	xor d
 	and d
 	ld (_RAM_C05F_), a
 	ld a, d
-	ld (_RAM_C05D_), a
+	ld (_RAM_C05D_JOYPAD1), a
 	ld a, (_RAM_C060_)
 	ld (_RAM_C061_), a
 	xor c
 	and c
-	ld (_RAM_C062_), a
+	ld (_RAM_C062_), a	;This seems like port 2 in RAM.
 	ld a, c
-	ld (_RAM_C060_), a
+	ld (_RAM_C060_), a	;And this one as well.
 	ld a, d
 	ret
 
-_LABEL_1034_:
-	in a, (Port_IOPort1)
-	cpl
-	ld b, a
-	in a, (Port_IOPort2)
-	cpl
-	and $0F
+_LABEL_1034_PADPRESSD:
+	in a, (Port_IOPort1)	;Get the first joypad val.
+	cpl			;Invert the values.
+	ld b, a			;B holds now pad1.
+	in a, (Port_IOPort2)	;Get pad 2.
+	cpl			;Invert vals.
+	and $0F			;AND the second pad with $0F\0000 1111
+	;; Some buttons and other not needed parts are masked off.
 	or b
 	ret
-
-_LABEL_103F_:
+	;; This checks both ports, the second port gets its upped four bits chopped off, as that's not needed. I suspect we check if the pads are pressed at all or not.
+_LABEL_103F_OR_C093:
 	ld a, (_RAM_C093_)
 	or a
 	ret
 
-_LABEL_1044_:
-	call _LABEL_1034_
+_LABEL_1044_:			   ;When we start the program, this is where we land from that small conditional jump.
+	call _LABEL_1034_PADPRESSD	;
 	jp nz, _LABEL_1081_
 	ld hl, (_RAM_C089_)
 	ld de, (_RAM_C08B_)
@@ -2687,13 +2733,13 @@ _LABEL_1044_:
 	ex af, af'
 	ld a, (hl)
 	ld d, a
-	ld a, (_RAM_C05D_)
+	ld a, (_RAM_C05D_JOYPAD1)
 	ld (_RAM_C05E_), a
 	xor d
 	and d
 	ld (_RAM_C05F_), a
 	ld a, d
-	ld (_RAM_C05D_), a
+	ld (_RAM_C05D_JOYPAD1), a
 	ex af, af'
 	ld a, d
 	ret nz
@@ -2832,7 +2878,7 @@ _LABEL_1134_:
 	jp _LABEL_D34_
 
 _LABEL_1149_:
-	ld a, (_RAM_C000_)
+	ld a, (_RAM_C000_GAME_NR)
 	add a, a
 	ld c, a
 	add a, a
@@ -2904,48 +2950,48 @@ _LABEL_1149_:
 
 _LABEL_11B5_:
 	ld a, b
-	ld (_RAM_C063_), a
-	ld a, (_RAM_C000_)
-	add a, b
+	ld (_RAM_C063_), a	;Most of these are either zero or three.
+	ld a, (_RAM_C000_GAME_NR)
+	add a, b		;add this number to the game type.
 	ld l, a
 	ld h, $00
 	ld de, _DATA_11C7_
-	add hl, de
-	ld e, (hl)
-	rst $18	; _LABEL_18_
+	add hl, de		;the pointer is created from this above, like many times before.
+	ld e, (hl)		;Read from this array.
+	rst $18	; _LABEL_18_	;BANKSWITCH!
 	ret
 
 ; Data from 11C7 to 11CC (6 bytes)
-_DATA_11C7_:
+_DATA_11C7_:			;These are all bank numbers.
 .db $02 $03 $04 $05 $06 $07
 
-; Pointer Table from 11CD to 11CE (1 entries, indexed by _RAM_C000_)
+; Pointer Table from 11CD to 11CE (1 entries, indexed by _RAM_C000_GAME_NR)
 _DATA_11CD_:
 .dw _DATA_C389_
 
 ; Data from 11CF to 11D0 (2 bytes)
 .db $34 $91
 
-; Pointer Table from 11D1 to 11D2 (1 entries, indexed by _RAM_C000_)
+; Pointer Table from 11D1 to 11D2 (1 entries, indexed by _RAM_C000_GAME_NR)
 _DATA_11D1_:
 .dw _DATA_D1DC_
 
-; Pointer Table from 11D3 to 11D4 (1 entries, indexed by _RAM_C000_)
+; Pointer Table from 11D3 to 11D4 (1 entries, indexed by _RAM_C000_GAME_NR)
 .dw $81F6
 
-; Pointer Table from 11D5 to 11D6 (1 entries, indexed by _RAM_C000_)
+; Pointer Table from 11D5 to 11D6 (1 entries, indexed by _RAM_C000_GAME_NR)
 .dw _DATA_9E02_
 
 ; Data from 11D7 to 11D8 (2 bytes)
 .db $0D $C1
 
-; Pointer Table from 11D9 to 11DA (1 entries, indexed by _RAM_C000_)
+; Pointer Table from 11D9 to 11DA (1 entries, indexed by _RAM_C000_GAME_NR)
 .dw $92DB
 
 ; Data from 11DB to 11E0 (6 bytes)
 .db $17 $01 $00 $80 $80 $83
 
-; Pointer Table from 11E1 to 11E2 (1 entries, indexed by _RAM_C000_)
+; Pointer Table from 11E1 to 11E2 (1 entries, indexed by _RAM_C000_GAME_NR)
 _DATA_11E1_:
 .dw _DATA_1991_
 
@@ -2969,7 +3015,7 @@ _DATA_120F_:
 .db $FE $FE $00 $B2 $FF $FF $00 $81 $7E $7E $00 $72 $0C $0C $00 $0C
 .db $7E $7E $00 $7E $FF $FF $00 $81 $FF $FF $00 $9D
 
-; 1st entry of Pointer Table from 11D9 (indexed by _RAM_C000_)
+; 1st entry of Pointer Table from 11D9 (indexed by _RAM_C000_GAME_NR)
 ; Data from 12DB to 1864 (1418 bytes)
 _DATA_12DB_:
 .db $FE $FE $00 $82 $7F $7F $00 $7D $FF $FF $00 $9D $FE $FE $00 $82
@@ -3072,7 +3118,7 @@ _LABEL_1865_:
 	push de
 	push bc
 	ld e, a
-	rst $18	; _LABEL_18_
+	rst $18	; _LABEL_18_	BANKSWITCH!
 	pop bc
 	pop de
 	pop hl
@@ -3084,27 +3130,37 @@ _LABEL_1865_:
 	pop af
 	ret
 
-_LABEL_187C_:
+_LABEL_187C_DRAWBG_INIT:			;Referenced a lot, lets see what's this.
 	push de
 	push hl
 	ld e, a
 	rst $18	; _LABEL_18_
+	;; So, rst 18 jumps to $50. There, a bank switch is done, and bank 0 will be loaded into Slot 2. I don't really see why this is needed, since bank 0 is already there in Slot 0 and 1 too. and should be there. It should have some reason, i'm sure.
+	;; Note: After disabling rst $18, the game works, but the tilemaps are not loaded at all, so this is definetly used. PCM sounds are borked as well, but the music and sounds are working correctly.
 	pop hl
 	pop de
-_LABEL_1882_:
+_LABEL_1882_DRAWBG:
+	;; If this is disabled, then the game won't draw menus, and game stages either.
+	;; Sprites are drawn, but that's it. Other games simply reset the whole shebang.
+	;; So, we switched back to bank 0 to slot 2, then reading from another slot? Okay...
 	ld a, (hl)
-	ld (de), a
+	ld (de), a		;So, we read from HL and copy it to DE.
+	inc de			;Increment destination addr.
+	xor a			;Zero out A.
+	ld (de), a		;Load this zero into the next address we just went to.
 	inc de
-	xor a
-	ld (de), a
-	inc de
-	inc hl
+	inc hl			;Increment source and destination as well.
 	dec bc
 	ld a, b
 	or c
-	jp nz, _LABEL_1882_
-	call _LABEL_11B5_
-	ret
+	jp nz, _LABEL_1882_DRAWBG	;We loop this until we are finished with this.
+	;; So we load data, then a zero. This reminds me about tilemaps, where the first byte is the meat of things, then the second byte contains other parts, like tile flipping and things like that.
+	;; The very few games I looked at, does not do this, just copy the whole thing and that's it.
+	 call _LABEL_11B5_
+	;; nop
+	;; nop
+	;; nop
+	 ret			
 
 _LABEL_1893_:
 	push de
@@ -3124,7 +3180,7 @@ _LABEL_189B_:
 
 _LABEL_18A6_:
 	ld (_RAM_C07A_), a
-	call _LABEL_FB4_
+	call _LABEL_FB4_WAIT4VBLANK
 	ei
 	ld bc, $0000
 	ld de, $0017
@@ -3144,13 +3200,13 @@ _LABEL_18B3_:
 	ret
 
 _LABEL_18C7_:
-	ld (_RAM_C07A_), a
-	call _LABEL_FB4_
-	ei
+	ld (_RAM_C07A_), a	;Okay, so we receive some input in A.
+	call _LABEL_FB4_WAIT4VBLANK ;Soo, this should be some video thing, if we are doing it in VBlank.
+	ei			    ;Have we not enabled interrupts already?
 	ld bc, $000B
 	ld de, $000C
 _LABEL_18D4_:
-	halt
+	halt			;Oh yes, now we are waiting until there's an interrupt, at which we jump to $0038, then coming back here.
 	call _LABEL_18E8_
 	dec c
 	push bc
@@ -3164,7 +3220,7 @@ _LABEL_18D4_:
 	jp nz, _LABEL_18D4_
 	ret
 
-_LABEL_18E8_:
+_LABEL_18E8_:			;This is frequently called after a HALT.
 	push bc
 	push de
 _LABEL_18EA_:
@@ -3236,7 +3292,7 @@ _DATA_197D_:
 .db $50 $4C $41 $59 $45 $52 $20 $39 $00 $47 $41 $4D $45 $20 $4F $56
 .db $45 $52 $00 $FF
 
-; 1st entry of Pointer Table from 11E1 (indexed by _RAM_C000_)
+; 1st entry of Pointer Table from 11E1 (indexed by _RAM_C000_GAME_NR)
 ; Data from 1991 to 1A10 (128 bytes)
 _DATA_1991_:
 .dsb 12, $18
@@ -3261,7 +3317,7 @@ _LABEL_1A11_:
 	call _LABEL_3323_
 	push af
 	ld e, $0F
-	rst $18	; _LABEL_18_
+	rst $18	; _LABEL_18_	BANKSWITCH TO BANK 15
 	pop af
 	ld l, a
 	ld h, $00
@@ -3327,15 +3383,15 @@ _DATA_1A7B_:
 
 ; Pointer Table from 1A86 to 1A87 (1 entries, indexed by unknown)
 _DATA_1A86_:
-.dw _DATA_3C000_
+.dw _DATA_3C000_PCM
 
 ; Data from 1A88 to 1A9D (22 bytes)
 .db $82 $07 $83 $87 $44 $06 $C8 $8D $06 $09 $CF $96 $44 $06 $14 $9D
 .db $03 $09 $18 $A6 $18 $0A
 
-_LABEL_1A9E_:
-	ld a, (_RAM_C001_)
-	ld (_RAM_C000_), a
+_LABEL_1A9E_MAIN_MENU_ENTRY:
+	ld a, (_RAM_C001_GAME_NR_BCKP)
+	ld (_RAM_C000_GAME_NR), a
 	ld hl, _RAM_C042_
 	ld (hl), $01
 	ld a, $01
@@ -3347,7 +3403,7 @@ _LABEL_1A9E_:
 	ld hl, _RAM_C088_
 	ld (hl), $00
 	call _LABEL_BF7_
-	call _LABEL_73D_
+	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_
 	ld hl, _DATA_1C60_
 	ld (_RAM_C04B_), hl
@@ -3369,7 +3425,7 @@ _LABEL_1A9E_:
 	ld hl, _DATA_2E5D0_
 	ld de, _RAM_C689_
 	ld bc, $0300
-	call _LABEL_187C_
+	call _LABEL_187C_DRAWBG_INIT
 	xor a
 	call _LABEL_18C7_
 	ld hl, _DATA_1C39_
@@ -3388,7 +3444,7 @@ _LABEL_1A9E_:
 	ld (ix+21), $00
 	ld (ix+22), $00
 	ld (ix+11), $00
-	ld a, (_RAM_C001_)
+	ld a, (_RAM_C001_GAME_NR_BCKP)
 	ld l, a
 	ld h, $00
 	ld de, _DATA_1BBD_
@@ -3443,7 +3499,7 @@ _LABEL_1BA3_:
 	ld a, $01
 	call _LABEL_18A6_
 	call _LABEL_BF7_
-	call _LABEL_73D_
+	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_
 	ld hl, _RAM_C042_
 	ld (hl), $00
@@ -3461,8 +3517,8 @@ _DATA_1BC0_:
 
 ; 1st entry of Jump Table from 1BC0 (indexed by _RAM_C0EF_)
 _LABEL_1BC2_:
-	call _LABEL_FF6_
-	ld a, (_RAM_C05D_)
+	call _LABEL_FF6_JOYPAD
+	ld a, (_RAM_C05D_JOYPAD1)
 	bit 4, a
 	jp nz, _LABEL_1C00_
 	ld a, (ix+22)
@@ -3484,7 +3540,7 @@ _LABEL_1BEC_:
 	ret
 
 _LABEL_1BF1_:
-	ld a, (_RAM_C05D_)
+	ld a, (_RAM_C05D_JOYPAD1)
 	ld b, a
 	bit 1, b
 	call nz, _LABEL_1C05_
@@ -3501,12 +3557,12 @@ _LABEL_1C05_:
 	ld (_RAM_C011_), a
 	ld (ix+11), $01
 	ld (ix+22), $30
-	ld a, (_RAM_C000_)
+	ld a, (_RAM_C000_GAME_NR)
 	inc a
 	cp $03
 	ret nc
-	ld (_RAM_C000_), a
-	ld (_RAM_C001_), a
+	ld (_RAM_C000_GAME_NR), a
+	ld (_RAM_C001_GAME_NR_BCKP), a
 	ret
 
 _LABEL_1C20_:
@@ -3514,11 +3570,11 @@ _LABEL_1C20_:
 	ld (_RAM_C011_), a
 	ld (ix+11), $FF
 	ld (ix+22), $30
-	ld a, (_RAM_C000_)
+	ld a, (_RAM_C000_GAME_NR)
 	dec a
 	ret m
-	ld (_RAM_C000_), a
-	ld (_RAM_C001_), a
+	ld (_RAM_C000_GAME_NR), a
+	ld (_RAM_C001_GAME_NR_BCKP), a
 	ret
 
 ; Data from 1C39 to 1C3B (3 bytes)
@@ -3717,7 +3773,7 @@ _LABEL_2880_:
 	ld hl, _RAM_C04D_
 	ld (hl), $00
 	call _LABEL_BF7_
-	call _LABEL_73D_
+	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_
 	ld hl, _DATA_1C60_
 	ld (_RAM_C04B_), hl
@@ -3735,7 +3791,7 @@ _LABEL_2880_:
 	ld hl, _DATA_334D0_
 	ld de, _RAM_C689_
 	ld bc, $0300
-	call _LABEL_187C_
+	call _LABEL_187C_DRAWBG_INIT
 	pop af
 	add a, a
 	ld l, a
@@ -3771,7 +3827,7 @@ _LABEL_28F8_:
 	ei
 	ret
 
-; Pointer Table from 290E to 2913 (3 entries, indexed by _RAM_C000_)
+; Pointer Table from 290E to 2913 (3 entries, indexed by _RAM_C000_GAME_NR)
 _DATA_290E_:
 .dw _RAM_DA5B_ _RAM_DAA6_ _RAM_DAF1_
 
@@ -3821,7 +3877,7 @@ _LABEL_293E_:
 	ld h, $00
 _LABEL_2962_:
 	ld (_RAM_C091_), hl
-	call _LABEL_1034_
+	call _LABEL_1034_PADPRESSD
 	jp nz, _LABEL_297C_
 	ld a, (_RAM_C090_)
 	dec a
@@ -3983,7 +4039,7 @@ _LABEL_2B7A_:
 	halt
 	dec a
 	jp nz, _LABEL_2B7A_
-	call _LABEL_1034_
+	call _LABEL_1034_PADPRESSD
 	jp nz, _LABEL_2BA7_
 	dec de
 	ld a, d
@@ -3996,7 +4052,7 @@ _LABEL_2B8B_:
 	xor a
 	call _LABEL_18C7_
 	call _LABEL_BF7_
-	call _LABEL_73D_
+	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_
 	ld hl, _RAM_C042_
 	ld (hl), $00
@@ -4027,7 +4083,7 @@ _LABEL_2BAF_:
 	ld hl, _DATA_2C22_
 	call _LABEL_6BC_
 	inc c
-	ld a, (_RAM_C094_)
+	ld a, (_RAM_C094_XTRA_CREDITS)
 	or a
 	ld hl, _DATA_2CC8_
 	ld b, $00
@@ -4038,7 +4094,7 @@ _LABEL_2BAF_:
 _LABEL_2BF6_:
 	ei
 	halt
-	call _LABEL_1034_
+	call _LABEL_1034_PADPRESSD
 	jp nz, _LABEL_2C1A_
 	dec hl
 	ld a, h
@@ -4049,7 +4105,7 @@ _LABEL_2C04_:
 	ld (hl), $01
 	ld a, $01
 	call _LABEL_18A6_
-	call _LABEL_73D_
+	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_BF7_
 	ld hl, _RAM_C042_
 	ld (hl), $00
@@ -4115,7 +4171,7 @@ _LABEL_2D88_:
 	ld a, $02
 	ld (_RAM_C023_), a
 	call _LABEL_32F0_
-	ld a, (_RAM_C005_)
+	ld a, (_RAM_C005__NR_PLAYERS)
 	ld b, a
 _LABEL_2DCA_:
 	push bc
@@ -4143,7 +4199,7 @@ _LABEL_2DF9_:
 	halt
 	push hl
 	call _LABEL_2F48_
-	call _LABEL_FF6_
+	call _LABEL_FF6_JOYPAD
 	ld a, (_RAM_C003_)
 	or a
 	ld a, (_RAM_C05F_)
@@ -4184,7 +4240,7 @@ _LABEL_2E2D_:
 	jp nz, _LABEL_2DF9_
 _LABEL_2E4D_:
 	call _LABEL_2F6E_
-	ld a, (_RAM_C005_)
+	ld a, (_RAM_C005__NR_PLAYERS)
 	cp $02
 	jp nz, _LABEL_2E6C_
 	ld a, (_RAM_C003_)
@@ -4210,7 +4266,7 @@ _LABEL_2E85_:
 	halt
 	djnz _LABEL_2E85_
 	ld a, $01
-	call _LABEL_73D_
+	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_BF7_
 	ld hl, _RAM_C042_
 	ld (hl), $00
@@ -4343,7 +4399,7 @@ _LABEL_2F48_:
 	ret
 
 _LABEL_2F6E_:
-	ld a, (_RAM_C000_)
+	ld a, (_RAM_C000_GAME_NR)
 	add a, a
 	ld l, a
 	ld h, $00
@@ -4457,11 +4513,11 @@ _LABEL_3087_:
 	ld bc, $0303
 	ld hl, _DATA_31DD_
 	call _LABEL_6BC_
-	ld a, (_RAM_C000_)
+	ld a, (_RAM_C000_GAME_NR)
 	cp $02
 	ld hl, _DATA_3222_
 	call nz, _LABEL_6BC_
-	ld a, (_RAM_C005_)
+	ld a, (_RAM_C005__NR_PLAYERS)
 	ld b, a
 	ld bc, $0A04
 	ld hl, $0000
@@ -4480,7 +4536,7 @@ _LABEL_30ED_:
 	halt
 	push hl
 	call _LABEL_2F48_
-	call _LABEL_FF6_
+	call _LABEL_FF6_JOYPAD
 	ld a, (_RAM_C003_)
 	or a
 	ld a, (_RAM_C05F_)
@@ -4496,13 +4552,13 @@ _LABEL_3103_:
 	bit 5, a
 	jp nz, _LABEL_3194_
 _LABEL_3117_:
-	ld a, (_RAM_C005_)
+	ld a, (_RAM_C005__NR_PLAYERS)
 	inc a
 	ld bc, $1908
 	ld e, a
 	ld d, $00
 	call _LABEL_E1D_
-	ld a, (_RAM_C000_)
+	ld a, (_RAM_C000_GAME_NR)
 	cp $02
 	jp z, _LABEL_3139_
 	ld a, (_RAM_C09A_)
@@ -4522,7 +4578,7 @@ _LABEL_3140_:
 	call _LABEL_18A6_
 	ld hl, _RAM_C042_
 	ld (hl), $01
-	call _LABEL_73D_
+	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_BF7_
 	ld hl, _RAM_C042_
 	ld (hl), $00
@@ -4540,7 +4596,7 @@ _LABEL_3162_:
 	jp _LABEL_3117_
 
 _LABEL_3168_:
-	ld a, (_RAM_C000_)
+	ld a, (_RAM_C000_GAME_NR)
 	cp $02
 	jp z, _LABEL_3182_
 	ld a, (_RAM_C07D_)
@@ -4592,16 +4648,16 @@ _LABEL_31BD_:
 	jp _LABEL_3117_
 
 _LABEL_31C5_:
-	ld a, (_RAM_C005_)
+	ld a, (_RAM_C005__NR_PLAYERS)
 	cp $01
 	jp z, _LABEL_31D5_
 	ld a, $01
-	ld (_RAM_C005_), a
+	ld (_RAM_C005__NR_PLAYERS), a
 	jp _LABEL_3117_
 
 _LABEL_31D5_:
 	ld a, $02
-	ld (_RAM_C005_), a
+	ld (_RAM_C005__NR_PLAYERS), a
 	jp _LABEL_3117_
 
 ; Data from 31DD to 3221 (69 bytes)
@@ -4654,7 +4710,7 @@ _LABEL_326B_:
 	ret nz
 	ld hl, _RAM_C042_
 	ld (hl), $01
-	call _LABEL_73D_
+	call _LABEL_73D_CLEAR_C5C9
 	ei
 	halt
 	di
@@ -4664,7 +4720,7 @@ _LABEL_326B_:
 	ld c, $09
 	ld l, $00
 	call _LABEL_C02_
-	call _LABEL_3319_
+	call _LABEL_3319_DISABLE_PSG
 _LABEL_3293_:
 	in a, (Port_IOPort2)
 	bit 4, a
@@ -4673,7 +4729,7 @@ _LABEL_3293_:
 	jp _LABEL_421_
 
 _LABEL_32A0_:
-	call _LABEL_1034_
+	call _LABEL_1034_PADPRESSD
 	jp z, _LABEL_3293_
 	ld a, $01
 	ld (_RAM_D589_), a
@@ -4745,11 +4801,11 @@ _LABEL_32F0_:
 _DATA_330D_:
 .dw _DATA_3CBB_ _DATA_4F86_ _DATA_51F1_ _DATA_5F85_ $9E82 $AA38
 
-_LABEL_3319_:
+_LABEL_3319_DISABLE_PSG:
 	push af
 	xor a
-	ld (_RAM_D589_), a
-	call _LABEL_3323_
+	ld (_RAM_D589_), a	;I hope this is some sound related stuff. I mean just this one var.
+	call _LABEL_3323_	;Yes, the below is simply muting the PSG.
 	pop af
 	ret
 
@@ -7109,7 +7165,7 @@ _LABEL_69F6_:
 	out (Port_PSG), a
 	ret
 
-_LABEL_69FB_:
+_LABEL_69FB_LEGAL_SCR1:			;i was here 
 	ld a, $01
 	call _LABEL_18C7_
 	ld hl, _RAM_C042_
@@ -7142,7 +7198,7 @@ _LABEL_6A35_:
 	ld (hl), $01
 	ld a, $01
 	call _LABEL_18A6_
-	call _LABEL_73D_
+	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_BF7_
 	ld hl, _RAM_C042_
 	ld (hl), $00
@@ -7633,7 +7689,7 @@ _LABEL_839C_:
 	call _LABEL_759_
 	ld a, (_RAM_C003_)
 	or a
-	ld a, (_RAM_C05D_)
+	ld a, (_RAM_C05D_JOYPAD1)
 	jp z, _LABEL_83B5_
 	ld a, (_RAM_C060_)
 _LABEL_83B5_:
@@ -7667,7 +7723,7 @@ _LABEL_83E5_:
 	call _LABEL_FBE_
 	ld a, (_RAM_C003_)
 	or a
-	ld a, (_RAM_C05D_)
+	ld a, (_RAM_C05D_JOYPAD1)
 	jp z, _LABEL_83F8_
 	ld a, (_RAM_C060_)
 _LABEL_83F8_:
@@ -7763,7 +7819,7 @@ _LABEL_847C_:
 	ld (_RAM_C021_), a
 	jp z, _LABEL_84C6_
 _LABEL_84A6_:
-	ld a, (_RAM_C005_)
+	ld a, (_RAM_C005__NR_PLAYERS)
 	cp $02
 	call z, _LABEL_1906_
 	call _LABEL_80F5_
@@ -7785,7 +7841,7 @@ _LABEL_84C6_:
 	inc a
 	ld (_RAM_C004_), a
 	push af
-	ld a, (_RAM_C005_)
+	ld a, (_RAM_C005__NR_PLAYERS)
 	cp $02
 	call z, _LABEL_1906_
 	call _LABEL_80F5_
@@ -7796,7 +7852,7 @@ _LABEL_84C6_:
 	ret
 
 _LABEL_84EC_:
-	call _LABEL_73D_
+	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_
 	call _LABEL_8071_
 	call _LABEL_8512_
@@ -8962,7 +9018,7 @@ _LABEL_8DE4_:
 	jp nz, _LABEL_8DD0_
 	ret
 
-_LABEL_8DF1_:
+_LABEL_8DF1_:			;Is this some tile loading thing? Also: I was here.
 	push af
 	ld a, $01
 	call _LABEL_18C7_
@@ -9001,7 +9057,7 @@ _LABEL_8DF1_:
 	ld a, $08
 	ld de, _RAM_C889_
 	ld bc, $0080
-	call _LABEL_187C_
+	call _LABEL_187C_DRAWBG_INIT
 	jp _LABEL_2B52_
 
 ; Pointer Table from 8E51 to 8E60 (8 entries, indexed by unknown)
@@ -9015,7 +9071,7 @@ _LABEL_8E61_:
 	ld hl, _RAM_C042_
 	ld (hl), $00
 	call _LABEL_BF7_
-	call _LABEL_73D_
+	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_
 	ld hl, $19F2
 	ld (_RAM_C07E_), hl
@@ -9039,7 +9095,7 @@ _LABEL_8E61_:
 	ld hl, _DATA_26328_
 	ld de, _RAM_CA49_
 	ld bc, $0300
-	call _LABEL_187C_
+	call _LABEL_187C_DRAWBG_INIT
 	xor a
 	call _LABEL_18C7_
 	ld hl, _DATA_10FD7_
@@ -9056,7 +9112,7 @@ _LABEL_8E61_:
 	ld (ix+3), $FA
 	ld (ix+4), $00
 	ld (ix+21), $00
-	call _LABEL_3319_
+	call _LABEL_3319_DISABLE_PSG
 	ld a, $C0
 	out (Port_PSG), a
 	xor a
@@ -9068,7 +9124,7 @@ _LABEL_8EFD_:
 	halt
 	call _LABEL_8FD_
 	call _LABEL_842_
-	call _LABEL_1034_
+	call _LABEL_1034_PADPRESSD
 	jp nz, _LABEL_8F13_
 	ld a, (_RAM_C0DA_)
 	or a
@@ -9076,7 +9132,7 @@ _LABEL_8EFD_:
 	ret
 
 _LABEL_8F13_:
-	call _LABEL_3319_
+	call _LABEL_3319_DISABLE_PSG
 	ld a, $01
 	ld (_RAM_C093_), a
 	ld a, $01
@@ -9142,7 +9198,7 @@ _LABEL_8F61_:
 _LABEL_8F8A_:
 	halt
 	djnz _LABEL_8F8A_
-	call _LABEL_3319_
+	call _LABEL_3319_DISABLE_PSG
 	ld a, $05
 _LABEL_8F92_:
 	cp $64
@@ -9422,7 +9478,7 @@ _DATA_94F2_:
 .db $17 $1B $13 $1B $0F $1B $0F $1B $1B $1B $1B $17 $1B $1B $0F $1B
 .db $1B $1B $13 $1B $17 $0F $17 $17 $17 $13 $17 $13 $13 $13 $13 $13
 
-; 1st entry of Pointer Table from 11D5 (indexed by _RAM_C000_)
+; 1st entry of Pointer Table from 11D5 (indexed by _RAM_C000_GAME_NR)
 ; Data from 9E02 to BFFF (8702 bytes)
 _DATA_9E02_:
 .db $00 $15 $2A $3F $05 $0A $1F $04 $08 $1C $00 $00 $34 $01 $02 $07
@@ -9710,14 +9766,14 @@ _LABEL_C000_:
 	ld a, (_RAM_C088_)
 	or a
 	jp z, _LABEL_C00E_
-	call _LABEL_103F_
+	call _LABEL_103F_OR_C093
 	ret nz
 _LABEL_C00E_:
-	call _LABEL_6F1_
+	call _LABEL_6F1_STP_VDPREG1_D_DISPLAY
 	call _LABEL_645_
 	call _LABEL_66C_
 	call _LABEL_BF7_
-	call _LABEL_73D_
+	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_
 	call _LABEL_1149_
 	ld a, $00
@@ -9751,7 +9807,7 @@ _LABEL_C00E_:
 	call _LABEL_CBE_
 	call _LABEL_D17_
 	call _LABEL_66C_
-	call _LABEL_F92_
+	call _LABEL_F92_VDP_REG_SETUP
 	ld a, (_RAM_C003_)
 	ld c, $48
 	call _LABEL_B8E_
@@ -9769,7 +9825,7 @@ _LABEL_C089_:
 	call _LABEL_C13D_
 	call _LABEL_326B_
 	ld b, $01
-	ld a, (_RAM_C005_)
+	ld a, (_RAM_C005__NR_PLAYERS)
 	cp $02
 	jp nz, _LABEL_C0AB_
 	inc b
@@ -9852,7 +9908,7 @@ _LABEL_C13D_:
 	ld (_RAM_C021_), a
 	jp z, _LABEL_C191_
 _LABEL_C167_:
-	ld a, (_RAM_C005_)
+	ld a, (_RAM_C005__NR_PLAYERS)
 	cp $02
 	call z, _LABEL_1906_
 	call _LABEL_C218_
@@ -9878,7 +9934,7 @@ _LABEL_C191_:
 	inc a
 	ld (_RAM_C004_), a
 	push af
-	ld a, (_RAM_C005_)
+	ld a, (_RAM_C005__NR_PLAYERS)
 	cp $02
 	call z, _LABEL_1906_
 	pop af
@@ -9889,7 +9945,7 @@ _LABEL_C191_:
 
 _LABEL_C1B4_:
 	call _LABEL_CF96_
-	call _LABEL_73D_
+	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_C1CA_
 	xor a
 	ld (_RAM_C034_), a
@@ -10062,7 +10118,7 @@ _DATA_C302_:
 .db $DD $7E $00 $CD $C8 $83 $CA $89 $83 $C3 $8E $83 $DD $23 $DD $23
 .db $0B $78 $B1 $C2 $72 $83 $C9
 
-; 1st entry of Pointer Table from 11CD (indexed by _RAM_C000_)
+; 1st entry of Pointer Table from 11CD (indexed by _RAM_C000_GAME_NR)
 ; Data from C389 to C401 (121 bytes)
 _DATA_C389_:
 .db $73 $23 $C3 $7E $83 $DD $7E $02 $CD $C8 $83 $CA $C2 $83 $36 $00
@@ -10462,7 +10518,7 @@ _LABEL_C78C_:
 	call _LABEL_759_
 	ld a, (_RAM_C003_)
 	or a
-	ld a, (_RAM_C05D_)
+	ld a, (_RAM_C05D_JOYPAD1)
 	jp z, _LABEL_C7A8_
 	call _LABEL_FBE_
 	ld a, (_RAM_C060_)
@@ -10558,7 +10614,7 @@ _LABEL_C851_:
 	ld b, $01
 	ld a, (_RAM_C003_)
 	or a
-	ld a, (_RAM_C05D_)
+	ld a, (_RAM_C05D_JOYPAD1)
 	jp z, _LABEL_C863_
 	ld a, (_RAM_C060_)
 _LABEL_C863_:
@@ -10576,7 +10632,7 @@ _LABEL_C871_:
 	call _LABEL_FBE_
 	ld a, (_RAM_C003_)
 	or a
-	ld a, (_RAM_C05D_)
+	ld a, (_RAM_C05D_JOYPAD1)
 	jp z, _LABEL_C881_
 	ld a, (_RAM_C060_)
 _LABEL_C881_:
@@ -11144,7 +11200,7 @@ _LABEL_CDDF_:
 	halt
 	di
 	call _LABEL_BF7_
-	call _LABEL_73D_
+	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_C287_
 	call _LABEL_C218_
 	call _LABEL_8DD_
@@ -11378,23 +11434,23 @@ _LABEL_CFA2_:
 	ld a, $00
 	call _LABEL_F08_
 	call _LABEL_D012_
-	ld hl, _DATA_38000_
+	ld hl, _DATA_38000_BRKOUT_SCORE_SCR_TILES
 	ld de, $0000
 	ld bc, $2000
 	ld a, $0E
 	call _LABEL_1865_
 	ld a, $0E
-	ld hl, _DATA_39DC8_
+	ld hl, _DATA_39DC8_BRKOUT_SCORE_TMAP
 	ld de, _RAM_C689_
 	ld bc, $0300
-	call _LABEL_187C_
+	call _LABEL_187C_DRAWBG_INIT
 	xor a
 	call _LABEL_18A6_
 	ld hl, $01F4
 _LABEL_CFE6_:
 	ei
 	halt
-	call _LABEL_1034_
+	call _LABEL_1034_PADPRESSD
 	jp nz, _LABEL_D00A_
 	dec hl
 	ld a, h
@@ -11405,7 +11461,7 @@ _LABEL_CFF4_:
 	ld (hl), $01
 	ld a, $01
 	call _LABEL_18A6_
-	call _LABEL_73D_
+	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_BF7_
 	ld hl, _RAM_C042_
 	ld (hl), $00
@@ -11445,7 +11501,7 @@ _LABEL_D02D_:
 	ld hl, _RAM_C04D_
 	ld (hl), $00
 	call _LABEL_BF7_
-	call _LABEL_73D_
+	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_
 	ld hl, _DATA_1C60_
 	ld (_RAM_C04B_), hl
@@ -11467,7 +11523,7 @@ _LABEL_D02D_:
 	ld hl, _DATA_2E2C8_
 	ld de, _RAM_C691_
 	ld bc, $0300
-	call _LABEL_187C_
+	call _LABEL_187C_DRAWBG_INIT
 	xor a
 	call _LABEL_18C7_
 	ld hl, _DATA_111BC_
@@ -11484,7 +11540,7 @@ _LABEL_D02D_:
 	ld (ix+3), $2A
 	ld (ix+4), $01
 	ld (ix+21), $00
-	call _LABEL_3319_
+	call _LABEL_3319_DISABLE_PSG
 	ld hl, _DATA_D0F9_
 	ld c, Port_PSG
 	ld b, $04
@@ -11494,18 +11550,18 @@ _LABEL_D0C3_:
 	halt
 	call _LABEL_8FD_
 	call _LABEL_842_
-	call _LABEL_1034_
+	call _LABEL_1034_PADPRESSD
 	jp nz, _LABEL_D0F1_
 	ld a, (_RAM_C0DA_)
 	or a
 	jp z, _LABEL_D0C3_
 _LABEL_D0D8_:
-	call _LABEL_3319_
+	call _LABEL_3319_DISABLE_PSG
 	ld hl, _RAM_C042_
 	ld (hl), $01
 	ld a, $01
 	call _LABEL_18A6_
-	call _LABEL_73D_
+	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_BF7_
 	ld hl, _RAM_C042_
 	ld (hl), $00
@@ -11628,7 +11684,7 @@ _DATA_D1BC_:
 _DATA_D1CE_:
 .db $FF $FF $00 $01 $02 $03 $04 $FF $FF $FF $05 $06 $07 $08
 
-; 1st entry of Pointer Table from 11D1 (indexed by _RAM_C000_)
+; 1st entry of Pointer Table from 11D1 (indexed by _RAM_C000_GAME_NR)
 ; Data from D1DC to D311 (310 bytes)
 _DATA_D1DC_:
 .db $09 $0A $FF $0B $0C $0D $0E $0F $10 $11 $12 $13 $14 $15 $16 $17
@@ -11919,14 +11975,14 @@ _LABEL_10000_:
 	ld a, (_RAM_C088_)
 	or a
 	jp z, _LABEL_1000E_
-	call _LABEL_103F_
+	call _LABEL_103F_OR_C093
 	ret nz
 _LABEL_1000E_:
-	call _LABEL_6F1_
+	call _LABEL_6F1_STP_VDPREG1_D_DISPLAY
 	call _LABEL_645_
 	call _LABEL_66C_
 	call _LABEL_BF7_
-	call _LABEL_73D_
+	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_
 	call _LABEL_1149_
 	ld a, $00
@@ -11938,7 +11994,7 @@ _LABEL_1000E_:
 	call _LABEL_10183_
 	call _LABEL_6D6_
 	call _LABEL_777_
-	call _LABEL_F92_
+	call _LABEL_F92_VDP_REG_SETUP
 	ld a, (_RAM_C022_)
 	ld d, $00
 	call _LABEL_10139_
@@ -11967,7 +12023,7 @@ _LABEL_1007D_:
 	halt
 	call _LABEL_C46_
 	call _LABEL_8FD_
-	call _LABEL_FF6_
+	call _LABEL_FF6_JOYPAD
 	call _LABEL_842_
 	call _LABEL_D7D_
 	call _LABEL_102CE_
@@ -11975,7 +12031,7 @@ _LABEL_1007D_:
 	call _LABEL_326B_
 	call _LABEL_100AD_
 	ld b, $01
-	ld a, (_RAM_C005_)
+	ld a, (_RAM_C005__NR_PLAYERS)
 	cp $02
 	jp nz, _LABEL_100A5_
 	inc b
@@ -12103,7 +12159,7 @@ _LABEL_10183_:
 	ld (_RAM_C006_), a
 	xor a
 	ld (_RAM_C007_), a
-	call _LABEL_FF6_
+	call _LABEL_FF6_JOYPAD
 	ld a, $01
 	ld (_RAM_C032_), a
 	ld (_RAM_C03A_), a
@@ -12158,7 +12214,7 @@ _LABEL_1021C_:
 
 _LABEL_10235_:
 	call _LABEL_10248_
-	call _LABEL_73D_
+	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_10254_
 	xor a
 	ld (_RAM_C00A_), a
@@ -12300,7 +12356,7 @@ _LABEL_10334_:
 	call _LABEL_1038F_
 	jp z, _LABEL_10403_
 _LABEL_10342_:
-	ld a, (_RAM_C005_)
+	ld a, (_RAM_C005__NR_PLAYERS)
 	cp $02
 	call z, _LABEL_10382_
 	call _LABEL_10235_
@@ -12409,7 +12465,7 @@ _LABEL_10403_:
 	add a, $02
 	ld c, $48
 	call _LABEL_B8E_
-	ld a, (_RAM_C094_)
+	ld a, (_RAM_C094_XTRA_CREDITS)
 	or a
 	jp nz, _LABEL_1041B_
 	ld a, (_RAM_C004_)
@@ -12417,7 +12473,7 @@ _LABEL_10403_:
 	ld (_RAM_C004_), a
 _LABEL_1041B_:
 	push af
-	ld a, (_RAM_C005_)
+	ld a, (_RAM_C005__NR_PLAYERS)
 	cp $02
 	call z, _LABEL_10388_
 	pop af
@@ -12848,7 +12904,7 @@ _LABEL_106D9_:
 	call _LABEL_759_
 	ld a, (_RAM_C003_)
 	or a
-	ld a, (_RAM_C05D_)
+	ld a, (_RAM_C05D_JOYPAD1)
 	jp z, _LABEL_106F2_
 	ld a, (_RAM_C060_)
 _LABEL_106F2_:
@@ -12970,7 +13026,7 @@ _LABEL_107AC_:
 	call _LABEL_10809_
 	ld a, (_RAM_C003_)
 	or a
-	ld a, (_RAM_C05D_)
+	ld a, (_RAM_C05D_JOYPAD1)
 	jp z, _LABEL_107BC_
 	ld a, (_RAM_C060_)
 _LABEL_107BC_:
@@ -14148,7 +14204,7 @@ _LABEL_1130C_:
 	ld hl, _DATA_36BC8_
 	ld de, _RAM_C689_
 	ld bc, $0300
-	call _LABEL_187C_
+	call _LABEL_187C_DRAWBG_INIT
 	jp _LABEL_2B52_
 
 _LABEL_11358_:
@@ -14163,7 +14219,7 @@ _LABEL_11358_:
 	ld hl, _RAM_C04D_
 	ld (hl), $00
 	call _LABEL_BF7_
-	call _LABEL_73D_
+	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_
 	ld hl, _DATA_1C60_
 	ld (_RAM_C04B_), hl
@@ -14186,7 +14242,7 @@ _LABEL_11384_:
 	ld hl, _DATA_320C8_
 	ld de, _RAM_C689_
 	ld bc, $0300
-	call _LABEL_187C_
+	call _LABEL_187C_DRAWBG_INIT
 	xor a
 	call _LABEL_18C7_
 	ld hl, _DATA_11505_
@@ -14203,7 +14259,7 @@ _LABEL_11384_:
 	ld (ix+3), $45
 	ld (ix+4), $01
 	ld (ix+21), $00
-	call _LABEL_3319_
+	call _LABEL_3319_DISABLE_PSG
 	ld hl, _DATA_11433_
 	ld c, Port_PSG
 	ld b, $04
@@ -14213,19 +14269,19 @@ _LABEL_113FA_:
 	halt
 	call _LABEL_8FD_
 	call _LABEL_842_
-	call _LABEL_1034_
+	call _LABEL_1034_PADPRESSD
 	jp nz, _LABEL_1142B_
 	ld a, (_RAM_C0DA_)
 	or a
 	jp z, _LABEL_113FA_
 _LABEL_1140F_:
 	call _LABEL_3479_
-	call _LABEL_3319_
+	call _LABEL_3319_DISABLE_PSG
 	ld hl, _RAM_C042_
 	ld (hl), $01
 	ld a, $01
 	call _LABEL_18A6_
-	call _LABEL_73D_
+	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_BF7_
 	ld hl, _RAM_C042_
 	ld (hl), $00
@@ -14302,7 +14358,7 @@ _LABEL_1147E_:
 _LABEL_114A7_:
 	halt
 	djnz _LABEL_114A7_
-	call _LABEL_3319_
+	call _LABEL_3319_DISABLE_PSG
 	ld a, $04
 _LABEL_114AF_:
 	cp $64
@@ -15075,7 +15131,7 @@ _DATA_12738_:
 
 .BANK 5
 .ORG $0000
-
+	;; This is the bank for the Centipede graphics.
 ; Data from 14000 to 17FFF (16384 bytes)
 .dsb 33, $00
 .db $7C $7C $00 $00 $E2 $E2 $00 $00 $E6 $E6 $00 $00 $EE $EE $00 $00
@@ -15524,7 +15580,7 @@ _DATA_12738_:
 
 .BANK 6
 .ORG $0000
-
+	;; This is the bank for the Breakout graphics.
 ; Data from 18000 to 1BFFF (16384 bytes)
 .dsb 32, $00
 .db $7C $7C $7C $7C $E2 $E2 $E2 $E2 $E6 $E6 $E6 $E6 $EE $EE $EE $EE
@@ -15975,7 +16031,7 @@ _DATA_12738_:
 
 .BANK 7
 .ORG $0000
-
+	;; This is the Missile Command game graphics.
 ; Data from 1C000 to 1FFFF (16384 bytes)
 .dsb 32, $00
 .db $7C $00 $7C $7C $00 $E2 $E2 $E2 $E6 $E6 $E6 $E6 $EE $EE $EE $EE
@@ -16763,7 +16819,7 @@ _DATA_12738_:
 
 .BANK 8
 .ORG $0000
-
+	;; This is the Centipede point screens, where the game tells you how many points each enemy is worth.
 ; Data from 20000 to 216BF (5824 bytes)
 _DATA_20000_:
 .dsb 54, $00
@@ -17603,7 +17659,7 @@ _DATA_23140_:
 
 .BANK 9
 .ORG $0000
-
+	;; This is the Centipede introduction screen graphics.
 ; Data from 24000 to 24BBF (3008 bytes)
 _DATA_24000_:
 .dsb 58, $00
@@ -18643,7 +18699,7 @@ _DATA_279E8_:
 
 .BANK 10
 .ORG $0000
-
+	;; These are the Breakout backgrounds.
 ; Data from 28000 to 2BFFF (16384 bytes)
 .db $00 $FF $00 $FF $00 $FF $00 $FF $00 $FF $00 $FF $01 $FF $01 $FE
 .db $04 $FC $04 $FB $00 $F0 $00 $FF $08 $F8 $08 $F7 $04 $FC $04 $FB
@@ -19698,7 +19754,7 @@ _DATA_279E8_:
 
 .BANK 11
 .ORG $0000
-
+	;; Breakout introduction graphics.
 ; Data from 2C000 to 2CE9F (3744 bytes)
 _DATA_2C000_:
 .dsb 60, $00
@@ -20407,7 +20463,7 @@ _DATA_2E5D0_:
 
 .BANK 12
 .ORG $0000
-
+	;; Missile Command introduction graphics. The High-Score screen graphics are at the end.
 ; Data from 30000 to 30D1F (3360 bytes)
 _DATA_30000_:
 .dsb 57, $00
@@ -21320,7 +21376,7 @@ _DATA_334D0_:
 
 .BANK 13
 .ORG $0000
-
+	;; Missile Command object points.
 ; Data from 34000 to 355DF (5600 bytes)
 _DATA_34000_:
 .dsb 32, $00
@@ -22129,9 +22185,9 @@ _DATA_36BC8_:
 
 .BANK 14
 .ORG $0000
-
+	;; Breakout brick point screen, how much worth per hit.
 ; Data from 38000 to 39DC7 (7624 bytes)
-_DATA_38000_:
+_DATA_38000_BRKOUT_SCORE_SCR_TILES:
 .dsb 32, $00
 .db $7C $7C $7C $7C $E2 $E2 $E2 $E2 $E6 $E6 $E6 $E6 $EA $EA $EA $EA
 .db $F2 $F2 $F2 $F2 $E2 $E2 $E2 $E2 $7C $7C $7C $7C $00 $00 $00 $00
@@ -22630,7 +22686,7 @@ _DATA_38000_:
 .db $20 $00 $18 $00 $00 $00 $08
 
 ; Data from 39DC8 to 3BFFF (8760 bytes)
-_DATA_39DC8_:
+_DATA_39DC8_BRKOUT_SCORE_TMAP:
 .db $00 $00 $00 $3E $3F $40 $41 $42 $00 $00 $00 $00 $00 $00 $00 $AC
 .db $AD $AE $AF $B0
 .dsb 15, $00
@@ -22684,10 +22740,10 @@ _DATA_39DC8_:
 
 .BANK 15
 .ORG $0000
-
+	;; This seems to be the PCM bank.
 ; 1st entry of Pointer Table from 1A86 (indexed by unknown)
 ; Data from 3C000 to 3FFFF (16384 bytes)
-_DATA_3C000_:
+_DATA_3C000_PCM:
 .db $AB $BB $66 $76 $9B $BB $BA $AB $66 $67 $66 $71 $66 $66 $66 $68
 .db $80 $66 $66 $66 $BA $BA $66 $67 $CD $CD $EC $DD $96 $66 $66 $66
 .db $66 $66 $AB $BB $66 $67 $AE $CD $D8 $BC $DE $CD $66 $66 $66 $66
