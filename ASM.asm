@@ -1025,7 +1025,7 @@ _LABEL_458_:
 	ld a, $01	   ;Nr. of players.
 	ld (_RAM_C005__NR_PLAYERS), a	;These will be investigated later in what they do.
 	call _LABEL_69FB_LEGAL_SCR1	;This is the legal screen that starts before anything else. At least this is what it seems so far. Also, this is the first one, the second is after the three demos, then it shows the company who coded this game, along with the possible extra credits.
-_LABEL_48C_:				;We finally found some main loop? Could be.
+_LABEL_48C_MENU_ENTRY:				;We finally found some main loop? Could be.
 	ld sp, $DE00
 	xor a
 	ld (_RAM_C093_), a
@@ -1035,7 +1035,7 @@ _LABEL_48C_:				;We finally found some main loop? Could be.
 	xor a
 	ld (_RAM_C000_GAME_NR), a
 	ld b, $00
-	call _LABEL_11B5_	;The points intro will be messed up, if this is disabled.
+	call _LABEL_11B5_CLR_SCREEN	;The points intro will be messed up, if this is disabled.
 	ld b, $08		;Okay! This B controls how many screens are shown BEFORE the Centipede demo starts. These screens show how many points each creature worth when shot.
 _LABEL_4A4_SHOW_POINT_PICS_CENTIPEDE:
 	;; I got this now: This part is the Centipede point screen per monster, where the game tells you how many points worth each of them, but i've already stated this.
@@ -1049,55 +1049,60 @@ _LABEL_4A4_SHOW_POINT_PICS_CENTIPEDE:
 	;; I have to check later what does this $C093 memory address do.
 	jp z, _LABEL_4B4_	;Now, this with the above, this all makes more sense.
 	pop bc
-	jp _LABEL_48C_		;And jump back to the beginning.
+	jp _LABEL_48C_MENU_ENTRY		;And jump back to the beginning.
 
 _LABEL_4B4_:
 	pop bc
 	djnz _LABEL_4A4_SHOW_POINT_PICS_CENTIPEDE	;If this B is not zero, then simply loop back.
 	;; I wonder what B does exactly, but I think, this may be some timer to time the game demos.
+	ld a, $00		;This is most likely the game number, which we want to look the demo at.
+	call _LABEL_559_GAME_DEMO
+	;; This above commences the game demo.
+	call _LABEL_103F_OR_C093 ;After the game demo, the high score list comes, maybe this is that.
+	
+	jp nz, _LABEL_48C_MENU_ENTRY	;We jump back to the beginning, once the demo is finished.
 	ld a, $00
-	call _LABEL_559_
+	 call  _LABEL_2880_HISCORE_ENTRY	;This is the high-score entry screen's entry. a in this case holds the game number which we want to see the entries of.
 	call _LABEL_103F_OR_C093
-	jp nz, _LABEL_48C_
-	ld a, $00
-	call _LABEL_2880_
-	call _LABEL_103F_OR_C093
-	jp nz, _LABEL_48C_
+	jp nz, _LABEL_48C_MENU_ENTRY
 	ld a, $01
 	ld (_RAM_C000_GAME_NR), a
 	ld b, $00
-	call _LABEL_11B5_
-	call $8FA2	; Possibly invalid
+	call _LABEL_11B5_CLR_SCREEN	;This clears the screen after a game demo and high score screen has been ran.
+	call  $8FA2
+				;I can't seem to find this exact label, but that's not an issue I think, since it's the Breakout game's score screen, where each brick is shown how many points it worth.
 	call _LABEL_103F_OR_C093
-	jp nz, _LABEL_48C_
+	jp nz, _LABEL_48C_MENU_ENTRY
 	ld a, $01
-	call _LABEL_559_
+	call _LABEL_559_GAME_DEMO
 	call _LABEL_103F_OR_C093
-	jp nz, _LABEL_48C_
+	jp nz, _LABEL_48C_MENU_ENTRY
 	ld a, $01
-	call _LABEL_2880_
+	call  _LABEL_2880_HISCORE_ENTRY
 	call _LABEL_103F_OR_C093
-	jp nz, _LABEL_48C_
+	jp nz, _LABEL_48C_MENU_ENTRY
 	ld a, $02
 	ld (_RAM_C000_GAME_NR), a
 	ld b, $00
-	call _LABEL_11B5_
-	call $930C	; Possibly invalid
+	call _LABEL_11B5_CLR_SCREEN
+	call $930C	
+				; Deducting from the previous few parts, this might be the Missile Command score screen. Yes, this is that.
 	call _LABEL_103F_OR_C093
-	jp nz, _LABEL_48C_
+	jp nz, _LABEL_48C_MENU_ENTRY
 	ld a, $02
-	call _LABEL_559_
+	call _LABEL_559_GAME_DEMO
 	call _LABEL_103F_OR_C093
-	jp nz, _LABEL_48C_
+	jp nz, _LABEL_48C_MENU_ENTRY
 	ld a, $02
-	call _LABEL_2880_
+	call  _LABEL_2880_HISCORE_ENTRY
 	call _LABEL_103F_OR_C093
-	jp nz, _LABEL_48C_
-	call _LABEL_2BAF_
+	jp nz, _LABEL_48C_MENU_ENTRY
+	call _LABEL_2BAF_	;If this is commented out, then only the first demo is shown, the rest is just cancelled, and the second legal screen is shown.
 	call _LABEL_103F_OR_C093
-	jp nz, _LABEL_48C_
+	jp nz, _LABEL_48C_MENU_ENTRY
 	call _LABEL_1034_PADPRESSD
-	jp z, _LABEL_48C_
+	jp z, _LABEL_48C_MENU_ENTRY ;And at this point do we roll back, if no button was pressed.
+	;; So, this is the menu code so far. Not really difficult, linear style. I like it, because it does the minimum, no wet untangible spaghetti bullshit.
 _LABEL_52E_:
 	xor a
 	ld (_RAM_C088_), a
@@ -1114,10 +1119,10 @@ _LABEL_547_:
 	call _LABEL_2D88_
 	call _LABEL_323B_
 	ld a, (_RAM_C000_GAME_NR)
-	call _LABEL_2880_
-	jp _LABEL_48C_
+	call  _LABEL_2880_HISCORE_ENTRY
+	jp _LABEL_48C_MENU_ENTRY
 
-_LABEL_559_:
+_LABEL_559_GAME_DEMO:
 	ld (_RAM_C000_GAME_NR), a ;We get the game type.
 	add a, a
 	ld l, a			;The number will be used as the lower number of some sorts of pointer.
@@ -1145,7 +1150,7 @@ _DATA_584_:
 
 _LABEL_58A_:
 	ld b, $00
-	call _LABEL_11B5_
+	call _LABEL_11B5_CLR_SCREEN
 	call _LABEL_1149_
 	ld a, (_RAM_C000_GAME_NR)
 	ld hl, _DATA_59F_
@@ -1172,7 +1177,7 @@ _LABEL_5B3_:
 	call _LABEL_6F1_STP_VDPREG1_D_DISPLAY
 	ld a, $01
 	call _LABEL_18A6_
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_
 	call _LABEL_1149_
@@ -1229,30 +1234,30 @@ _LABEL_63D_:
 
 _LABEL_645_:
 	ld b, $03
-	call _LABEL_11B5_
+	call _LABEL_11B5_CLR_SCREEN
 	ld hl, (_RAM_C059_)
 	ld de, $0000
 	ld bc, $2000
 	call _LABEL_A2B_
 _LABEL_656_:
 	ld b, $03
-	call _LABEL_11B5_
+	call _LABEL_11B5_CLR_SCREEN
 	ld hl, (_RAM_C05B_)
 	ld de, $2000
 	ld bc, $1800
 	call _LABEL_A2B_
 	ld b, $00
-	jp _LABEL_11B5_
+	jp _LABEL_11B5_CLR_SCREEN
 
 _LABEL_66C_:
 	ld b, $03
-	call _LABEL_11B5_
+	call _LABEL_11B5_CLR_SCREEN
 	ld hl, (_RAM_C082_)
 	ld de, $3E00
 	ld bc, $0080
 	call _LABEL_A2B_
 	ld b, $00
-	jp _LABEL_11B5_
+	jp _LABEL_11B5_CLR_SCREEN
 
 ; Data from 682 to 68D (12 bytes)
 .db $21 $00 $80 $11 $00 $00 $01 $00 $18 $C3 $2B $0A
@@ -2020,7 +2025,7 @@ _LABEL_BDA_:
 	di
 	ld hl, _RAM_C042_
 	ld (hl), $00
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_656_
 	call _LABEL_66C_
 	pop af
@@ -2030,7 +2035,7 @@ _LABEL_BDA_:
 	ld (_RAM_D589_), a
 	ret
 
-_LABEL_BF7_:
+_LABEL_BF7_REM_SPRITES:
 	ld de, $3F00
 	ld bc, $0040
 	ld h, $D0
@@ -2516,14 +2521,14 @@ _LABEL_ED0_:
 
 _LABEL_F08_:
 	push af
-	call _LABEL_FB4_WAIT4VBLANK
-	ld de, $C000
+	call _LABEL_FB4_WAIT4VBLANK ;Looks like some video stuff incoming.
+	ld de, $C000		    ;This is a color address. The beginning of the sprite ram.
 	ld a, e
-	out (Port_VDPAddress), a
+	out (Port_VDPAddress), a ;Load the Color address' first part into VDP.
 	ld a, d
 	out (Port_VDPAddress), a
 	pop af
-	add a, a
+	add a, a		;TODO I'll check this later.
 	add a, a
 	add a, a
 	add a, a
@@ -2597,7 +2602,7 @@ _LABEL_F6F_:
 	out (Port_VDPAddress), a
 	otir
 	ld b, $00
-	call _LABEL_11B5_
+	call _LABEL_11B5_CLR_SCREEN
 	ret
 
 _LABEL_F92_VDP_REG_SETUP:
@@ -2948,7 +2953,7 @@ _LABEL_1149_:
 	ld (_RAM_C082_), de
 	ret
 
-_LABEL_11B5_:
+_LABEL_11B5_CLR_SCREEN:
 	ld a, b
 	ld (_RAM_C063_), a	;Most of these are either zero or three.
 	ld a, (_RAM_C000_GAME_NR)
@@ -3123,7 +3128,7 @@ _LABEL_1865_:
 	pop de
 	pop hl
 	call _LABEL_A2B_
-	call _LABEL_11B5_
+	call _LABEL_11B5_CLR_SCREEN
 	pop bc
 	pop de
 	pop hl
@@ -3156,7 +3161,7 @@ _LABEL_1882_DRAWBG:
 	jp nz, _LABEL_1882_DRAWBG	;We loop this until we are finished with this.
 	;; So we load data, then a zero. This reminds me about tilemaps, where the first byte is the meat of things, then the second byte contains other parts, like tile flipping and things like that.
 	;; The very few games I looked at, does not do this, just copy the whole thing and that's it.
-	 call _LABEL_11B5_
+	 call _LABEL_11B5_CLR_SCREEN
 	;; nop
 	;; nop
 	;; nop
@@ -3374,7 +3379,7 @@ _LABEL_1A6C_:
 	jp nz, _LABEL_1A36_
 	ei
 	ld b, $00
-	call _LABEL_11B5_
+	call _LABEL_11B5_CLR_SCREEN
 	ret
 
 ; Data from 1A7B to 1A85 (11 bytes)
@@ -3402,7 +3407,7 @@ _LABEL_1A9E_MAIN_MENU_ENTRY:
 	call _LABEL_18A6_
 	ld hl, _RAM_C088_
 	ld (hl), $00
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_
 	ld hl, _DATA_1C60_
@@ -3498,7 +3503,7 @@ _LABEL_1BA3_:
 	djnz _LABEL_1BA3_
 	ld a, $01
 	call _LABEL_18A6_
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_
 	ld hl, _RAM_C042_
@@ -3764,7 +3769,7 @@ _DATA_1E82_:
 .dsb 28, $04
 .dsb 143, $00
 
-_LABEL_2880_:
+ _LABEL_2880_HISCORE_ENTRY:
 	push af
 	ld a, $01
 	call _LABEL_18A6_
@@ -3772,7 +3777,7 @@ _LABEL_2880_:
 	ld (hl), $00
 	ld hl, _RAM_C04D_
 	ld (hl), $00
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_
 	ld hl, _DATA_1C60_
@@ -4051,7 +4056,7 @@ _LABEL_2B8B_:
 	call _LABEL_66C_
 	xor a
 	call _LABEL_18C7_
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_
 	ld hl, _RAM_C042_
@@ -4063,12 +4068,16 @@ _LABEL_2BA7_:
 	ld (_RAM_C093_), a
 	jp _LABEL_2B8B_
 
-_LABEL_2BAF_:
+_LABEL_2BAF_:			;This is the last part that is not identified in the menu. i was here
 	ld a, $01
-	call _LABEL_18C7_
+	nop
+	nop
+	nop
+	call _LABEL_18C7_	
 	ld hl, _RAM_C042_
 	ld (hl), $01
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES ;From the start of this, maybe some sprite clearing. The code starts with the the usual sprite addresses, and then disables sprites. Though it gives a 64 entry loop, only one would be enough.
+ 				
 	ld hl, $19F2
 	ld (_RAM_C07E_), hl
 	ld hl, _DATA_1C60_
@@ -4106,7 +4115,7 @@ _LABEL_2C04_:
 	ld a, $01
 	call _LABEL_18A6_
 	call _LABEL_73D_CLEAR_C5C9
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	ld hl, _RAM_C042_
 	ld (hl), $00
 	ret
@@ -4153,7 +4162,7 @@ _LABEL_2D88_:
 	call _LABEL_18C7_
 	ld hl, _RAM_C042_
 	ld (hl), $01
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	ld hl, $19F2
 	ld (_RAM_C07E_), hl
 	ld hl, _DATA_1C60_
@@ -4188,7 +4197,7 @@ _LABEL_2DCA_:
 	ld (_RAM_C00B_), a
 	ei
 	halt
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	xor a
 	call _LABEL_18A6_
 	ld hl, $0509
@@ -4267,7 +4276,7 @@ _LABEL_2E85_:
 	djnz _LABEL_2E85_
 	ld a, $01
 	call _LABEL_73D_CLEAR_C5C9
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	ld hl, _RAM_C042_
 	ld (hl), $00
 	ret
@@ -4498,7 +4507,7 @@ _LABEL_3087_:
 	call _LABEL_18C7_
 	ld hl, _RAM_C042_
 	ld (hl), $01
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	ld hl, $19F2
 	ld (_RAM_C07E_), hl
 	ld hl, _DATA_1C60_
@@ -4579,7 +4588,7 @@ _LABEL_3140_:
 	ld hl, _RAM_C042_
 	ld (hl), $01
 	call _LABEL_73D_CLEAR_C5C9
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	ld hl, _RAM_C042_
 	ld (hl), $00
 	ret
@@ -4714,7 +4723,7 @@ _LABEL_326B_:
 	ei
 	halt
 	di
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_68E_
 	ld de, _DATA_32BF_ - 2
 	ld c, $09
@@ -4733,7 +4742,7 @@ _LABEL_32A0_:
 	jp z, _LABEL_3293_
 	ld a, $01
 	ld (_RAM_D589_), a
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_656_
 	call _LABEL_66C_
 	ld hl, _RAM_C042_
@@ -7170,7 +7179,7 @@ _LABEL_69FB_LEGAL_SCR1:			;i was here
 	call _LABEL_18C7_
 	ld hl, _RAM_C042_
 	ld (hl), $01
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	ld hl, $19F2
 	ld (_RAM_C07E_), hl
 	ld hl, _DATA_1C60_
@@ -7199,7 +7208,7 @@ _LABEL_6A35_:
 	ld a, $01
 	call _LABEL_18A6_
 	call _LABEL_73D_CLEAR_C5C9
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	ld hl, _RAM_C042_
 	ld (hl), $00
 	ret
@@ -7302,7 +7311,7 @@ _LABEL_807D_:
 	ei
 	ld hl, _RAM_C042_
 	ld (hl), $01
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	ld c, $01
 _LABEL_8088_:
 	ld b, $02
@@ -9024,7 +9033,7 @@ _LABEL_8DF1_:			;Is this some tile loading thing? Also: I was here.
 	call _LABEL_18C7_
 	ld hl, _RAM_C042_
 	ld (hl), $01
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	ld hl, $19F2
 	ld (_RAM_C07E_), hl
 	ld hl, _DATA_1C60_
@@ -9070,7 +9079,7 @@ _LABEL_8E61_:
 	call _LABEL_18A6_
 	ld hl, _RAM_C042_
 	ld (hl), $00
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_
 	ld hl, $19F2
@@ -9772,7 +9781,7 @@ _LABEL_C00E_:
 	call _LABEL_6F1_STP_VDPREG1_D_DISPLAY
 	call _LABEL_645_
 	call _LABEL_66C_
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_
 	call _LABEL_1149_
@@ -11199,7 +11208,7 @@ _LABEL_CDDF_:
 	halt
 	halt
 	di
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_C287_
 	call _LABEL_C218_
@@ -11426,7 +11435,7 @@ _LABEL_CFA2_:
 	call _LABEL_18C7_
 	ld hl, _RAM_C042_
 	ld (hl), $01
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	ld hl, $19F2
 	ld (_RAM_C07E_), hl
 	ld hl, _DATA_1C60_
@@ -11462,7 +11471,7 @@ _LABEL_CFF4_:
 	ld a, $01
 	call _LABEL_18A6_
 	call _LABEL_73D_CLEAR_C5C9
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	ld hl, _RAM_C042_
 	ld (hl), $00
 	ret
@@ -11500,7 +11509,7 @@ _LABEL_D02D_:
 	ld (hl), $00
 	ld hl, _RAM_C04D_
 	ld (hl), $00
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_
 	ld hl, _DATA_1C60_
@@ -11562,7 +11571,7 @@ _LABEL_D0D8_:
 	ld a, $01
 	call _LABEL_18A6_
 	call _LABEL_73D_CLEAR_C5C9
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	ld hl, _RAM_C042_
 	ld (hl), $00
 	ret
@@ -11981,7 +11990,7 @@ _LABEL_1000E_:
 	call _LABEL_6F1_STP_VDPREG1_D_DISPLAY
 	call _LABEL_645_
 	call _LABEL_66C_
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_
 	call _LABEL_1149_
@@ -12396,7 +12405,7 @@ _LABEL_1038F_:
 	ei
 	ld hl, _RAM_C042_
 	ld (hl), $01
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	ld b, $32
 _LABEL_1039A_:
 	halt
@@ -12433,7 +12442,7 @@ _LABEL_103DB_:
 	ld a, $01
 	push af
 _LABEL_103DE_:
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	ld hl, _RAM_C042_
 	ld (hl), $00
 	pop af
@@ -14183,7 +14192,7 @@ _LABEL_1130C_:
 	call _LABEL_18C7_
 	ld hl, _RAM_C042_
 	ld (hl), $01
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	ld hl, $19F2
 	ld (_RAM_C07E_), hl
 	ld hl, _DATA_1C60_
@@ -14218,7 +14227,7 @@ _LABEL_11358_:
 	ld (hl), $00
 	ld hl, _RAM_C04D_
 	ld (hl), $00
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_
 	ld hl, _DATA_1C60_
@@ -14282,7 +14291,7 @@ _LABEL_1140F_:
 	ld a, $01
 	call _LABEL_18A6_
 	call _LABEL_73D_CLEAR_C5C9
-	call _LABEL_BF7_
+	call _LABEL_BF7_REM_SPRITES
 	ld hl, _RAM_C042_
 	ld (hl), $00
 	ret
