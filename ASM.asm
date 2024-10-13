@@ -91,7 +91,7 @@ _RAM_C043_ dw
 _RAM_C045_ dw
 _RAM_C047_ dw
 _RAM_C049_ dw
-_RAM_C04B_ dw
+_RAM_C04B_PAL_LOAD_POINTER dw	;This is used for the color loading, like where it gets the data from. You get it.
 _RAM_C04D_ dw
 _RAM_C04F_ dw
 _RAM_C051_ db
@@ -1179,8 +1179,11 @@ _LABEL_5B3_:
 	call _LABEL_18A6_
 	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
-	call _LABEL_74B_
-	call _LABEL_1149_
+	;; call _LABEL_74B_CLR_C0C5
+	call _LABEL_1149_	;this very heavily glitches out the Centipede game if disabled.
+	nop
+	nop
+	nop
 	call _LABEL_8000_CENTIPEDE_ENTRYPOINT;_LABEL_0_		;How did this end up here? It caused some errors with the whole code.
 	ld a, $04
 	ld (_RAM_C023_), a
@@ -1188,10 +1191,10 @@ _LABEL_5B3_:
 	call _LABEL_66C_
 	ld de, $0003
 	ld bc, $0300
-	call _LABEL_70F_
+	call _LABEL_70F_FILL_RAM
 	ld de, $11F2
 	ld bc, $0020
-	call _LABEL_70F_
+	call _LABEL_70F_FILL_RAM
 	call _LABEL_FBE_
 	call $80F5	; Possibly invalid
 	call $8DCC	; Possibly invalid
@@ -1238,14 +1241,14 @@ _LABEL_645_:
 	ld hl, (_RAM_C059_)
 	ld de, $0000
 	ld bc, $2000
-	call _LABEL_A2B_
+	call _LABEL_A2B_VDP_LOAD_DATA
 _LABEL_656_:
 	ld b, $03
 	call _LABEL_11B5_CLR_SCREEN
 	ld hl, (_RAM_C05B_)
 	ld de, $2000
 	ld bc, $1800
-	call _LABEL_A2B_
+	call _LABEL_A2B_VDP_LOAD_DATA
 	ld b, $00
 	jp _LABEL_11B5_CLR_SCREEN
 
@@ -1255,24 +1258,24 @@ _LABEL_66C_:
 	ld hl, (_RAM_C082_)
 	ld de, $3E00
 	ld bc, $0080
-	call _LABEL_A2B_
+	call _LABEL_A2B_VDP_LOAD_DATA
 	ld b, $00
 	jp _LABEL_11B5_CLR_SCREEN
 
 ; Data from 682 to 68D (12 bytes)
 .db $21 $00 $80 $11 $00 $00 $01 $00 $18 $C3 $2B $0A
 
-_LABEL_68E_:
-	ld hl, _DATA_120F_
+_LABEL_68E_LOAD_LETTER_RAMHI:			;this loads letter tiles in the second part of the VDP memory.
+	ld hl, _DATA_120F_LETTER_TILES
 	ld de, $2000
 	ld bc, $0640
-	jp _LABEL_A2B_
+	jp _LABEL_A2B_VDP_LOAD_DATA
 
-_LABEL_69A_:
-	ld hl, _DATA_120F_
+_LABEL_69A_LOAD_LETTER_RAMLO:			;Loads the same for the second part.
+	ld hl, _DATA_120F_LETTER_TILES
 	ld de, $0000
 	ld bc, $0640
-	jp _LABEL_A2B_
+	jp _LABEL_A2B_VDP_LOAD_DATA
 
 _LABEL_6A6_:
 	ld a, (hl)
@@ -1308,14 +1311,14 @@ _LABEL_6D6_:
 	ld hl, _RAM_C6C9_
 	ld de, $3840
 	ld bc, $05C0
-	jp _LABEL_A2B_
+	jp _LABEL_A2B_VDP_LOAD_DATA
 
 _LABEL_6E2_:
 	push de
 	ld hl, _RAM_C689_
 	ld de, $3800
 	ld bc, $0600
-	call _LABEL_A2B_
+	call _LABEL_A2B_VDP_LOAD_DATA
 	pop de
 	ret
 
@@ -1348,8 +1351,8 @@ _LABEL_6FF_:
 	jp nz, _LABEL_6FF_
 	ret
 
-_LABEL_70F_:
-	ld hl, _RAM_C689_
+_LABEL_70F_FILL_RAM:
+	ld hl, _RAM_C689_	;This seems to clear, or fill RAM with value in DE. BC holds the amount of bytes to fill.
 _LABEL_712_:
 	ld (hl), e
 	inc hl
@@ -1381,7 +1384,7 @@ _LABEL_73D_CLEAR_C5C9:
 	ldir
 	ret
 
-_LABEL_74B_:
+_LABEL_74B_CLR_C0C5:			;As I can see, this clears RAM at a different part. There are a few of these codes that does the same thing, just parametered differently.
 	ld hl, _RAM_C0C5_
 	ld de, _RAM_C0C5_ + 1
 	ld bc, $0384
@@ -1824,7 +1827,7 @@ _LABEL_A1C_:
 	jp nz, _LABEL_A1C_
 	ret
 
-_LABEL_A2B_:
+_LABEL_A2B_VDP_LOAD_DATA:
 	call _LABEL_FB4_WAIT4VBLANK
 	ld a, e
 	out (Port_VDPAddress), a
@@ -1990,7 +1993,7 @@ _LABEL_B8E_:
 	ld (_RAM_C052_), hl
 	push af
 	push bc
-	call _LABEL_68E_
+	call _LABEL_68E_LOAD_LETTER_RAMHI
 	pop bc
 	pop af
 	push af
@@ -2519,23 +2522,23 @@ _LABEL_ED0_:
 	pop bc
 	ret
 
-_LABEL_F08_:
+_LABEL_F08_LOAD_PAL:			;By tracing this, it seems this loads colors into VRAM. The source address is below before we add HL to DE.
 	push af
 	call _LABEL_FB4_WAIT4VBLANK ;Looks like some video stuff incoming.
 	ld de, $C000		    ;This is a color address. The beginning of the sprite ram.
-	ld a, e
+	ld a, e			    ;Clear A.
 	out (Port_VDPAddress), a ;Load the Color address' first part into VDP.
 	ld a, d
 	out (Port_VDPAddress), a
 	pop af
-	add a, a		;TODO I'll check this later.
-	add a, a
-	add a, a
+	add a, a		
+	add a, a		;This is some data loading, address calculating thing.
+	add a, a		;A here is some offset or something. Anyway, this is color loading.
 	add a, a
 	add a, a
 	ld l, a
 	ld h, $00
-	ld de, (_RAM_C04B_)
+	ld de, (_RAM_C04B_PAL_LOAD_POINTER)	;The address we load from.
 	add hl, de
 	ld b, $20
 _LABEL_F25_:
@@ -2919,7 +2922,7 @@ _LABEL_1149_:
 	ld e, (hl)
 	inc hl
 	ld d, (hl)
-	ld (_RAM_C04B_), de
+	ld (_RAM_C04B_PAL_LOAD_POINTER), de
 	inc hl
 	ld e, (hl)
 	inc hl
@@ -3006,7 +3009,7 @@ _DATA_11E1_:
 .db $55 $C1 $9A $9C $16 $01 $00 $80 $00 $A0 $80 $AD
 
 ; Data from 120F to 12DA (204 bytes)
-_DATA_120F_:
+_DATA_120F_LETTER_TILES:			;This is six tile worth of data. Tiles 0-4.
 .dsb 32, $00
 .db $3C $3C $00 $3C $7E $7E $00 $42 $FF $FF $00 $99 $FF $FF $00 $95
 .db $FF $FF $00 $8D $FF $FF $00 $9D $7E $7E $00 $42 $3C $3C $00 $3C
@@ -3114,7 +3117,8 @@ _DATA_12DB_:
 .db $3C $3C $00 $3C $21 $20 $9E $01 $00 $03 $7E $B7 $CA $5D $18 $C6
 .db $40 $77 $23 $0B $78 $B1 $C2 $55 $18 $C9
 
-_LABEL_1865_:
+_LABEL_1865_BANKSW_LDTILES_CLRSCRN:			;This seems to load a lot of graphics, and used in a few places. I already got what's in there, so this is a bankswitch, load VRAM and clear screen thing. How could I name this? :D
+	;; Yeah, excellent naming.
 	push af
 	push hl
 	push de
@@ -3127,7 +3131,7 @@ _LABEL_1865_:
 	pop bc
 	pop de
 	pop hl
-	call _LABEL_A2B_
+	call _LABEL_A2B_VDP_LOAD_DATA
 	call _LABEL_11B5_CLR_SCREEN
 	pop bc
 	pop de
@@ -3409,30 +3413,30 @@ _LABEL_1A9E_MAIN_MENU_ENTRY:
 	ld (hl), $00
 	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
-	call _LABEL_74B_
-	ld hl, _DATA_1C60_
-	ld (_RAM_C04B_), hl
-	ld a, $00
-	call _LABEL_F08_
+	call _LABEL_74B_CLR_C0C5 
+	ld hl, _DATA_1C60_	;This has some palette data in this, but not sure what the rest is.
+	ld (_RAM_C04B_PAL_LOAD_POINTER), hl
+	ld a, $00		;No offsetting.
+	call _LABEL_F08_LOAD_PAL
 	ld de, $0000
 	ld bc, $0300
-	call _LABEL_70F_
-	ld hl, _DATA_26448_
+	call _LABEL_70F_FILL_RAM
+	ld hl, _DATA_26448_MAIN_MENU_TILESET	;These are the main menu tiles, letters and all that thing.
 	ld de, $0000
-	ld bc, $2000
-	ld a, $09
-	call _LABEL_1865_
-	ld hl, _DATA_279E8_
+	ld bc, $2000		;Load the whole bank into VRAM, I suspect.
+	ld a, $09		;This is the bank number.
+	call _LABEL_1865_BANKSW_LDTILES_CLRSCRN ;Load stuff.
+	ld hl, _DATA_279E8_			;This belongs to the game's mascot. At least these are the tiles. It seems this loads to the second part of the VRAM, which is for sprites in this setup.
 	ld bc, $1800
 	ld de, $2000
-	call _LABEL_1865_
+	call _LABEL_1865_BANKSW_LDTILES_CLRSCRN
 	ld a, $0B
-	ld hl, _DATA_2E5D0_
+	ld hl, _DATA_2E5D0_	;Seems to be a tilemap.
 	ld de, _RAM_C689_
 	ld bc, $0300
 	call _LABEL_187C_DRAWBG_INIT
-	xor a
-	call _LABEL_18C7_
+	xor a			;So far, we draw the screen for the main menu.
+	call _LABEL_18C7_	;This video thingy again.
 	ld hl, _DATA_1C39_
 	ld (_RAM_C045_), hl
 	ld hl, _DATA_1C3C_
@@ -3449,7 +3453,7 @@ _LABEL_1A9E_MAIN_MENU_ENTRY:
 	ld (ix+21), $00
 	ld (ix+22), $00
 	ld (ix+11), $00
-	ld a, (_RAM_C001_GAME_NR_BCKP)
+	ld a, (_RAM_C001_GAME_NR_BCKP) ;We set up some things.
 	ld l, a
 	ld h, $00
 	ld de, _DATA_1BBD_
@@ -3491,7 +3495,7 @@ _LABEL_1B82_:
 	xor a
 	ret
 
-_LABEL_1B94_:
+_LABEL_1B94_:			;This is hit, when the titlescreen timer has been expired.	todo
 	ld hl, _RAM_C042_
 	ld (hl), $01
 	ld a, $04
@@ -3505,7 +3509,7 @@ _LABEL_1BA3_:
 	call _LABEL_18A6_
 	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
-	call _LABEL_74B_
+	call _LABEL_74B_CLR_C0C5
 	ld hl, _RAM_C042_
 	ld (hl), $00
 	ld a, $01
@@ -3779,19 +3783,19 @@ _DATA_1E82_:
 	ld (hl), $00
 	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
-	call _LABEL_74B_
+	call _LABEL_74B_CLR_C0C5
 	ld hl, _DATA_1C60_
-	ld (_RAM_C04B_), hl
+	ld (_RAM_C04B_PAL_LOAD_POINTER), hl
 	ld a, $00
-	call _LABEL_F08_
+	call _LABEL_F08_LOAD_PAL
 	ld de, $0000
 	ld bc, $0300
-	call _LABEL_70F_
+	call _LABEL_70F_FILL_RAM
 	ld hl, _DATA_323C8_
 	ld de, $0000
 	ld bc, $2000
 	ld a, $0C
-	call _LABEL_1865_
+	call _LABEL_1865_BANKSW_LDTILES_CLRSCRN
 	ld a, $0C
 	ld hl, _DATA_334D0_
 	ld de, _RAM_C689_
@@ -4058,7 +4062,7 @@ _LABEL_2B8B_:
 	call _LABEL_18C7_
 	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
-	call _LABEL_74B_
+	call _LABEL_74B_CLR_C0C5
 	ld hl, _RAM_C042_
 	ld (hl), $00
 	ret
@@ -4070,24 +4074,24 @@ _LABEL_2BA7_:
 
 _LABEL_2BAF_:			;This is the last part that is not identified in the menu. i was here
 	ld a, $01
-	nop
-	nop
-	nop
-	call _LABEL_18C7_	
+	;; nop
+	;; nop
+	;; nop
+	call _LABEL_18C7_	;I still dont know what this is, but changing numbers dont do anything.
 	ld hl, _RAM_C042_
 	ld (hl), $01
 	call _LABEL_BF7_REM_SPRITES ;From the start of this, maybe some sprite clearing. The code starts with the the usual sprite addresses, and then disables sprites. Though it gives a 64 entry loop, only one would be enough.
  				
 	ld hl, $19F2
 	ld (_RAM_C07E_), hl
-	ld hl, _DATA_1C60_
-	ld (_RAM_C04B_), hl
+	ld hl, _DATA_1C60_	;The beginning of this is a palette, so this is why its used here.
+	ld (_RAM_C04B_PAL_LOAD_POINTER), hl
 	ld a, $00
-	call _LABEL_F08_
-	call _LABEL_69A_
+	call _LABEL_F08_LOAD_PAL ;Yes, load the palette, and use no extra bytes.
+	call _LABEL_69A_LOAD_LETTER_RAMLO
 	ld bc, $0300
 	ld de, $0000
-	call _LABEL_70F_
+	call _LABEL_70F_FILL_RAM
 	ld bc, $0006
 	ld hl, _DATA_2C22_
 	call _LABEL_6BC_
@@ -4166,14 +4170,14 @@ _LABEL_2D88_:
 	ld hl, $19F2
 	ld (_RAM_C07E_), hl
 	ld hl, _DATA_1C60_
-	ld (_RAM_C04B_), hl
+	ld (_RAM_C04B_PAL_LOAD_POINTER), hl
 	ld a, $00
-	call _LABEL_F08_
-	call _LABEL_68E_
-	call _LABEL_69A_
+	call _LABEL_F08_LOAD_PAL
+	call _LABEL_68E_LOAD_LETTER_RAMHI
+	call _LABEL_69A_LOAD_LETTER_RAMLO
 	ld bc, $0300
 	ld de, $0000
-	call _LABEL_70F_
+	call _LABEL_70F_FILL_RAM
 	ld bc, $0303
 	ld hl, _DATA_3007_
 	call _LABEL_6BC_
@@ -4502,23 +4506,23 @@ _DATA_3007_:
 .db $20 $54 $20 $55 $20 $56 $20 $57 $20 $58 $00 $00 $20 $20 $20 $20
 .db $20 $20 $20 $59 $20 $5A $20 $5B $20 $5C $20 $5D $20 $5E $00 $FF
 
-_LABEL_3087_:
-	ld a, $01
+_LABEL_3087_:			;We jump here, shortly after the main loop, but this is accessed after a new game is started.
+	ld a, $01		
 	call _LABEL_18C7_
 	ld hl, _RAM_C042_
 	ld (hl), $01
 	call _LABEL_BF7_REM_SPRITES
-	ld hl, $19F2
+	ld hl, $19F2		;At this place, we have the heart graphic.
 	ld (_RAM_C07E_), hl
 	ld hl, _DATA_1C60_
-	ld (_RAM_C04B_), hl
+	ld (_RAM_C04B_PAL_LOAD_POINTER), hl
 	ld a, $00
-	call _LABEL_F08_
-	call _LABEL_68E_
-	call _LABEL_69A_
+	call _LABEL_F08_LOAD_PAL
+	call _LABEL_68E_LOAD_LETTER_RAMHI
+	call _LABEL_69A_LOAD_LETTER_RAMLO
 	ld bc, $0300
 	ld de, $0000
-	call _LABEL_70F_
+	call _LABEL_70F_FILL_RAM
 	ld bc, $0303
 	ld hl, _DATA_31DD_
 	call _LABEL_6BC_
@@ -4724,7 +4728,7 @@ _LABEL_326B_:
 	halt
 	di
 	call _LABEL_BF7_REM_SPRITES
-	call _LABEL_68E_
+	call _LABEL_68E_LOAD_LETTER_RAMHI
 	ld de, _DATA_32BF_ - 2
 	ld c, $09
 	ld l, $00
@@ -7183,13 +7187,13 @@ _LABEL_69FB_LEGAL_SCR1:			;i was here
 	ld hl, $19F2
 	ld (_RAM_C07E_), hl
 	ld hl, _DATA_1C60_
-	ld (_RAM_C04B_), hl
+	ld (_RAM_C04B_PAL_LOAD_POINTER), hl
 	ld a, $00
-	call _LABEL_F08_
-	call _LABEL_69A_
+	call _LABEL_F08_LOAD_PAL
+	call _LABEL_69A_LOAD_LETTER_RAMLO
 	ld bc, $0300
 	ld de, $0000
-	call _LABEL_70F_
+	call _LABEL_70F_FILL_RAM
 	ld bc, $0006
 	ld hl, _DATA_6AEC_
 	call _LABEL_6BC_
@@ -7390,7 +7394,7 @@ _LABEL_80F5_:
 	ld a, (hl)
 	inc hl
 	push hl
-	call _LABEL_F08_
+	call _LABEL_F08_LOAD_PAL
 	pop hl
 	ld e, (hl)
 	inc hl
@@ -7862,7 +7866,7 @@ _LABEL_84C6_:
 
 _LABEL_84EC_:
 	call _LABEL_73D_CLEAR_C5C9
-	call _LABEL_74B_
+	call _LABEL_74B_CLR_C0C5
 	call _LABEL_8071_
 	call _LABEL_8512_
 	call _LABEL_807D_
@@ -9037,22 +9041,22 @@ _LABEL_8DF1_:			;Is this some tile loading thing? Also: I was here.
 	ld hl, $19F2
 	ld (_RAM_C07E_), hl
 	ld hl, _DATA_1C60_
-	ld (_RAM_C04B_), hl
+	ld (_RAM_C04B_PAL_LOAD_POINTER), hl
 	ld a, $00
-	call _LABEL_F08_
+	call _LABEL_F08_LOAD_PAL
 	ld hl, _DATA_20000_
 	ld de, $0000
 	ld bc, $16C0
 	ld a, $08
-	call _LABEL_1865_
+	call _LABEL_1865_BANKSW_LDTILES_CLRSCRN
 	ld de, $2000
-	call _LABEL_1865_
+	call _LABEL_1865_BANKSW_LDTILES_CLRSCRN
 	ld hl, _DATA_216C0_
 	ld bc, $1660
-	call _LABEL_1865_
+	call _LABEL_1865_BANKSW_LDTILES_CLRSCRN
 	ld de, $0000
 	ld bc, $0300
-	call _LABEL_70F_
+	call _LABEL_70F_FILL_RAM
 	pop af
 	add a, a
 	ld l, a
@@ -9081,25 +9085,25 @@ _LABEL_8E61_:
 	ld (hl), $00
 	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
-	call _LABEL_74B_
+	call _LABEL_74B_CLR_C0C5
 	ld hl, $19F2
 	ld (_RAM_C07E_), hl
 	ld hl, _DATA_1C60_
-	ld (_RAM_C04B_), hl
+	ld (_RAM_C04B_PAL_LOAD_POINTER), hl
 	ld a, $00
-	call _LABEL_F08_
+	call _LABEL_F08_LOAD_PAL
 	ld de, $0000
 	ld bc, $0300
-	call _LABEL_70F_
+	call _LABEL_70F_FILL_RAM
 	ld hl, _DATA_24000_
 	ld de, $0000
 	ld bc, $2000
 	ld a, $09
-	call _LABEL_1865_
+	call _LABEL_1865_BANKSW_LDTILES_CLRSCRN
 	ld hl, _DATA_24BC0_
 	ld bc, $1800
 	ld de, $2000
-	call _LABEL_1865_
+	call _LABEL_1865_BANKSW_LDTILES_CLRSCRN
 	ld a, $09
 	ld hl, _DATA_26328_
 	ld de, _RAM_CA49_
@@ -9783,13 +9787,13 @@ _LABEL_C00E_:
 	call _LABEL_66C_
 	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
-	call _LABEL_74B_
+	call _LABEL_74B_CLR_C0C5
 	call _LABEL_1149_
 	ld a, $00
-	call _LABEL_F08_
+	call _LABEL_F08_LOAD_PAL
 	ld de, $0000
 	ld bc, $0300
-	call _LABEL_70F_
+	call _LABEL_70F_FILL_RAM
 	call _LABEL_6E2_
 	call _LABEL_FBE_
 	call _LABEL_C0C1_
@@ -11439,15 +11443,15 @@ _LABEL_CFA2_:
 	ld hl, $19F2
 	ld (_RAM_C07E_), hl
 	ld hl, _DATA_1C60_
-	ld (_RAM_C04B_), hl
+	ld (_RAM_C04B_PAL_LOAD_POINTER), hl
 	ld a, $00
-	call _LABEL_F08_
+	call _LABEL_F08_LOAD_PAL
 	call _LABEL_D012_
 	ld hl, _DATA_38000_BRKOUT_SCORE_SCR_TILES
 	ld de, $0000
 	ld bc, $2000
 	ld a, $0E
-	call _LABEL_1865_
+	call _LABEL_1865_BANKSW_LDTILES_CLRSCRN
 	ld a, $0E
 	ld hl, _DATA_39DC8_BRKOUT_SCORE_TMAP
 	ld de, _RAM_C689_
@@ -11511,23 +11515,23 @@ _LABEL_D02D_:
 	ld (hl), $00
 	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
-	call _LABEL_74B_
+	call _LABEL_74B_CLR_C0C5
 	ld hl, _DATA_1C60_
-	ld (_RAM_C04B_), hl
+	ld (_RAM_C04B_PAL_LOAD_POINTER), hl
 	ld a, $00
-	call _LABEL_F08_
+	call _LABEL_F08_LOAD_PAL
 	ld de, $0000
 	ld bc, $0300
-	call _LABEL_70F_
+	call _LABEL_70F_FILL_RAM
 	ld hl, _DATA_2C000_
 	ld de, $0000
 	ld bc, $2000
 	ld a, $0B
-	call _LABEL_1865_
+	call _LABEL_1865_BANKSW_LDTILES_CLRSCRN
 	ld hl, _DATA_2CEA0_
 	ld bc, $1800
 	ld de, $2000
-	call _LABEL_1865_
+	call _LABEL_1865_BANKSW_LDTILES_CLRSCRN
 	ld a, $0B
 	ld hl, _DATA_2E2C8_
 	ld de, _RAM_C691_
@@ -11992,13 +11996,13 @@ _LABEL_1000E_:
 	call _LABEL_66C_
 	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
-	call _LABEL_74B_
+	call _LABEL_74B_CLR_C0C5
 	call _LABEL_1149_
 	ld a, $00
-	call _LABEL_F08_
+	call _LABEL_F08_LOAD_PAL
 	ld de, $0000
 	ld bc, $0300
-	call _LABEL_70F_
+	call _LABEL_70F_FILL_RAM
 	call _LABEL_FBE_
 	call _LABEL_10183_
 	call _LABEL_6D6_
@@ -14196,19 +14200,19 @@ _LABEL_1130C_:
 	ld hl, $19F2
 	ld (_RAM_C07E_), hl
 	ld hl, _DATA_1C60_
-	ld (_RAM_C04B_), hl
+	ld (_RAM_C04B_PAL_LOAD_POINTER), hl
 	ld a, $00
-	call _LABEL_F08_
+	call _LABEL_F08_LOAD_PAL
 	ld hl, _DATA_34000_
 	ld de, $0000
 	ld bc, $1800
 	ld a, $0D
-	call _LABEL_1865_
+	call _LABEL_1865_BANKSW_LDTILES_CLRSCRN
 	ld de, $2000
-	call _LABEL_1865_
+	call _LABEL_1865_BANKSW_LDTILES_CLRSCRN
 	ld hl, _DATA_355E0_
 	ld bc, $1800
-	call _LABEL_1865_
+	call _LABEL_1865_BANKSW_LDTILES_CLRSCRN
 	ld a, $0D
 	ld hl, _DATA_36BC8_
 	ld de, _RAM_C689_
@@ -14229,24 +14233,24 @@ _LABEL_11358_:
 	ld (hl), $00
 	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
-	call _LABEL_74B_
+	call _LABEL_74B_CLR_C0C5
 	ld hl, _DATA_1C60_
-	ld (_RAM_C04B_), hl
+	ld (_RAM_C04B_PAL_LOAD_POINTER), hl
 	ld a, $00
 _LABEL_11384_:
-	call _LABEL_F08_
+	call _LABEL_F08_LOAD_PAL
 	ld de, $0000
 	ld bc, $0300
-	call _LABEL_70F_
+	call _LABEL_70F_FILL_RAM
 	ld hl, _DATA_30000_
 	ld de, $0000
 	ld bc, $2000
 	ld a, $0C
-	call _LABEL_1865_
+	call _LABEL_1865_BANKSW_LDTILES_CLRSCRN
 	ld hl, _DATA_30D20_
 	ld bc, $1800
 	ld de, $2000
-	call _LABEL_1865_
+	call _LABEL_1865_BANKSW_LDTILES_CLRSCRN
 	ld a, $0C
 	ld hl, _DATA_320C8_
 	ld de, _RAM_C689_
@@ -18277,7 +18281,7 @@ _DATA_26328_:
 .db $00 $00 $00
 
 ; Data from 26448 to 279E7 (5536 bytes)
-_DATA_26448_:
+_DATA_26448_MAIN_MENU_TILESET:
 .dsb 32, $00
 .db $18 $18 $18 $18 $3C $3C $3C $3C $66 $66 $66 $66 $66 $66 $66 $66
 .db $7E $7E $7E $7E $66 $66 $66 $66 $66 $66 $66 $66 $00 $00 $00 $00
