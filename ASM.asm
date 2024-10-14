@@ -3496,18 +3496,19 @@ _LABEL_1B82_:
 	ret
 
 _LABEL_1B94_:			;This is hit, when the titlescreen timer has been expired.	todo
+	;; This is the first game demo I presume.
 	ld hl, _RAM_C042_
 	ld (hl), $01
 	ld a, $04
-	ld (_RAM_D58A_), a
-	call _LABEL_3494_
+	ld (_RAM_D58A_), a	
+	call _LABEL_3494_	;Some RAM values are set up, but that's it.
 	ld b, $64
 _LABEL_1BA3_:
-	halt
-	djnz _LABEL_1BA3_
+	halt			;There must be some sorts of timer there.
+	djnz _LABEL_1BA3_	;We wait until the timer is done I guess.
 	ld a, $01
-	call _LABEL_18A6_
-	call _LABEL_BF7_REM_SPRITES
+	call _LABEL_18A6_	;This is an effect, that draws black on the screen from the middle. One from middle to the top, and middle to bottom.
+	call _LABEL_BF7_REM_SPRITES ;Remove the little fella on the arrow. Or not. Oh yeah, just disable sprite drawing.
 	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_CLR_C0C5
 	ld hl, _RAM_C042_
