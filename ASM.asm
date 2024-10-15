@@ -38,7 +38,7 @@ _RAM_C00B_ db
 _RAM_C00C_ dw
 _RAM_C00E_ dw
 _RAM_C010_ db
-_RAM_C011_ db
+_RAM_C011_CENTIPEDE_DEMO_ENA db	;If this is not zero, then the main menu wont go to the Centipede demo.
 _RAM_C012_ db
 _RAM_C013_ db
 _RAM_C014_ db
@@ -52,7 +52,7 @@ _RAM_C01E_ dw
 _RAM_C020_ db
 _RAM_C021_ db
 _RAM_C022_ db
-_RAM_C023_ db
+_RAM_C023_INGAME_MUSIC_NR db
 _RAM_C024_ db
 _RAM_C025_ db
 _RAM_C026_ db
@@ -144,7 +144,7 @@ _RAM_C084_ db
 _RAM_C085_ db
 _RAM_C086_ db
 _RAM_C087_ db
-_RAM_C088_ db
+_RAM_C088_DEMO_SW db			;The demo switch?
 _RAM_C089_ dw
 _RAM_C08B_ dw
 _RAM_C08D_ dw
@@ -978,7 +978,7 @@ _LABEL_421_:
 	ld bc, $025B
 	ldir			;From a quick look at the source, it looks like a sound engine.
 	xor a
-	ld (_RAM_C088_), a
+	ld (_RAM_C088_DEMO_SW), a
 	ld (_RAM_C094_XTRA_CREDITS), a ;No extra credits for us now.
 	call _LABEL_FF6_JOYPAD
 	ld a, (_RAM_C05D_JOYPAD1)
@@ -1105,7 +1105,7 @@ _LABEL_4B4_:
 	;; So, this is the menu code so far. Not really difficult, linear style. I like it, because it does the minimum, no wet untangible spaghetti bullshit.
 _LABEL_52E_:
 	xor a
-	ld (_RAM_C088_), a
+	ld (_RAM_C088_DEMO_SW), a
 	call _LABEL_3087_
 	ld a, (_RAM_C09A_)
 	ld (_RAM_C021_), a
@@ -1136,7 +1136,7 @@ _LABEL_559_GAME_DEMO:
 	ld hl, $0400
 	ld (_RAM_C089_), hl
 	ld a, $01
-	ld (_RAM_C088_), a
+	ld (_RAM_C088_DEMO_SW), a
 	ld a, $04
 	ld (_RAM_C021_), a
 	ld a, $01
@@ -1168,7 +1168,7 @@ _DATA_59F_:
 ; 1st entry of Jump Table from 59F (indexed by _RAM_C000_GAME_NR)
 _LABEL_5A5_:
 	call $8E61	; Possibly invalid
-	ld a, (_RAM_C088_)
+	ld a, (_RAM_C088_DEMO_SW)
 	or a
 	jp z, _LABEL_5B3_
 	call _LABEL_103F_OR_C093
@@ -1179,22 +1179,20 @@ _LABEL_5B3_:
 	call _LABEL_18A6_
 	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
-	;; call _LABEL_74B_CLR_C0C5
+	call _LABEL_74B_CLR_C0C5 ;If this is commented out, then the music will be messed up, and the sounds as well. The PCM will play fine though.
 	call _LABEL_1149_	;this very heavily glitches out the Centipede game if disabled.
-	nop
-	nop
-	nop
-	call _LABEL_8000_CENTIPEDE_ENTRYPOINT;_LABEL_0_		;How did this end up here? It caused some errors with the whole code.
-	ld a, $04
-	ld (_RAM_C023_), a
-	call _LABEL_645_
-	call _LABEL_66C_
+	call _LABEL_8000_CENTIPEDE_ENTRYPOINT;_LABEL_0_		;How did this end up here? It caused some errors with the whole code.	;I thought this was the entry point, but it's not. Inits stuff, then returns. How hard would it be to write the code completely in its own bank?
+	ld a,  $04
+				;These are not the lives. This is the music, which the game starts with. If you die, the game will play the correct music though.
+	ld (_RAM_C023_INGAME_MUSIC_NR), a
+	call _LABEL_645_LOAD_VDP_FROMPOINTER ;HL should contain the source address for this loading. I see no identifiable HL value loaded anywhere.
+	call _LABEL_66C_LOAD_SPRITES_FROMPOINTER ;HL here should also contain the sprite addresses, where we load from.
 	ld de, $0003
 	ld bc, $0300
 	call _LABEL_70F_FILL_RAM
 	ld de, $11F2
 	ld bc, $0020
-	call _LABEL_70F_FILL_RAM
+	call _LABEL_70F_FILL_RAM ;Clear some more RAM.
 	call _LABEL_FBE_
 	call $80F5	; Possibly invalid
 	call $8DCC	; Possibly invalid
@@ -1235,13 +1233,13 @@ _LABEL_63D_:
 	jp nz, _LABEL_615_
 	ret
 
-_LABEL_645_:
+_LABEL_645_LOAD_VDP_FROMPOINTER:			;Clears the screen, then loads some things into the VDP via a pointer.
 	ld b, $03
 	call _LABEL_11B5_CLR_SCREEN
 	ld hl, (_RAM_C059_)
 	ld de, $0000
 	ld bc, $2000
-	call _LABEL_A2B_VDP_LOAD_DATA
+	call _LABEL_A2B_VDP_LOAD_DATA ;Loads stuff into the first part of the VDP tile memory.
 _LABEL_656_:
 	ld b, $03
 	call _LABEL_11B5_CLR_SCREEN
@@ -1252,7 +1250,7 @@ _LABEL_656_:
 	ld b, $00
 	jp _LABEL_11B5_CLR_SCREEN
 
-_LABEL_66C_:
+_LABEL_66C_LOAD_SPRITES_FROMPOINTER:			;Very similar to other types of data loading.
 	ld b, $03
 	call _LABEL_11B5_CLR_SCREEN
 	ld hl, (_RAM_C082_)
@@ -1260,7 +1258,7 @@ _LABEL_66C_:
 	ld bc, $0080
 	call _LABEL_A2B_VDP_LOAD_DATA
 	ld b, $00
-	jp _LABEL_11B5_CLR_SCREEN
+	jp _LABEL_11B5_CLR_SCREEN ;Loads sprite data, as it seems.
 
 ; Data from 682 to 68D (12 bytes)
 .db $21 $00 $80 $11 $00 $00 $01 $00 $18 $C3 $2B $0A
@@ -2030,7 +2028,7 @@ _LABEL_BDA_:
 	ld (hl), $00
 	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_656_
-	call _LABEL_66C_
+	call _LABEL_66C_LOAD_SPRITES_FROMPOINTER
 	pop af
 	ld (_RAM_C04D_), a
 	ei
@@ -2638,23 +2636,23 @@ _LABEL_FB4_WAIT4VBLANK:			;This waits for VBLank.
 	ex af, af'
 	ret
 
-_LABEL_FBE_:
-	ld a, (_RAM_C088_)
+_LABEL_FBE_:			;now we talkin'!
+	ld a, (_RAM_C088_DEMO_SW)
 	or a
-	jp nz, _LABEL_1044_
-	in a, (Port_IOPort1)
+	jp nz, _LABEL_1044_DEMO_INPUT	;This is the demo input's switch. If this is 1, then the game is in demo mode, runs normally otherwise. I will call this the demo input code for now.
+	in a, (Port_IOPort1)		;This is the normal gameplay part.
 	ld b, a
-	ld e, a
+	ld e, a			;B and E has Pad 1's input.
 	in a, (Port_IOPort2)
-	ld c, a
-	ld a, e
+	ld c, a			;C has Pad 2's input.
+	ld a, e			;We get back Pad 1's input into A.
 	rl b
 	rl c
 	rl b
-	rl c
-	ld d, a
-	ld a, (_RAM_C05D_JOYPAD1)
-	ld (_RAM_C05E_), a
+	rl c			;Roll 'em good.
+	ld d, a			;The original A is now in D.
+	ld a, (_RAM_C05D_JOYPAD1) ;Get the other value from RAM.
+	ld (_RAM_C05E_), a	  ;Put it elsewhere.	todo
 	xor d
 	and d
 	ld (_RAM_C05F_), a
@@ -2671,9 +2669,9 @@ _LABEL_FBE_:
 	ret
 
 _LABEL_FF6_JOYPAD:			;Last time, this was still a gamepad reading routine.
-	ld a, (_RAM_C088_)
+	ld a, (_RAM_C088_DEMO_SW)
 	or a
-	jp nz, _LABEL_1044_	;When we start the game, this will be zero.
+	jp nz, _LABEL_1044_DEMO_INPUT	;When we start the game, this will be zero.
 	;; No idea about this ram value. Will check later.
 	in a, (Port_IOPort1)
 	ld b, a
@@ -2727,7 +2725,7 @@ _LABEL_103F_OR_C093:
 	or a
 	ret
 
-_LABEL_1044_:			   ;When we start the program, this is where we land from that small conditional jump.
+_LABEL_1044_DEMO_INPUT:			   ;When we start the program, this is where we land from that small conditional jump.
 	call _LABEL_1034_PADPRESSD	;
 	jp nz, _LABEL_1081_
 	ld hl, (_RAM_C089_)
@@ -3409,7 +3407,7 @@ _LABEL_1A9E_MAIN_MENU_ENTRY:
 	ld (_RAM_C07E_), hl
 	ld a, $01
 	call _LABEL_18A6_
-	ld hl, _RAM_C088_
+	ld hl, _RAM_C088_DEMO_SW
 	ld (hl), $00
 	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
@@ -3464,38 +3462,38 @@ _LABEL_1A9E_MAIN_MENU_ENTRY:
 	ld hl, _RAM_C042_
 	ld (hl), $00
 	xor a
-	ld (_RAM_C011_), a
+	ld (_RAM_C011_CENTIPEDE_DEMO_ENA), a
 	ld a, $00
-	ld (_RAM_C023_), a
+	ld (_RAM_C023_INGAME_MUSIC_NR), a
 	call _LABEL_32F0_
 	call _LABEL_69F6_
 	ld bc, $03E8
-_LABEL_1B6A_:
+_LABEL_1B6A_:			;Main menu's main loop? It sure seems like it.
 	ei
 	halt
 	push bc
 	call _LABEL_8FD_
 	call _LABEL_842_
 	pop bc
-	ld a, (_RAM_C011_)
+	ld a, (_RAM_C011_CENTIPEDE_DEMO_ENA)	;Demo timer? But only for Centipede as it seems.
 	or a
-	jp z, _LABEL_1B82_
+	jp z, _LABEL_1B82_	;So, if the timer is zero, then we can go on with the timer's decrease.
 	ld bc, $01F4
 	xor a
-	ld (_RAM_C011_), a
-_LABEL_1B82_:
-	dec bc
-	ld a, b
-	or c
-	jp z, _LABEL_1B94_
+	ld (_RAM_C011_CENTIPEDE_DEMO_ENA), a
+_LABEL_1B82_:			;Some sort of timer that decreases bc.
+	dec bc			;Decrease B.
+	ld a, b			
+	or c			;So, if the result is zero, then go to the first demo.
+	jp z, _LABEL_1B94_CENTIPEDE_DEMO ;One check for it.
 	ld a, (_RAM_C0DA_)
 	or a
-	jp z, _LABEL_1B6A_
-	call _LABEL_1B94_
+	jp z, _LABEL_1B6A_	;We jump back a bit if this is zero. Hm.
+	call _LABEL_1B94_CENTIPEDE_DEMO
 	xor a
 	ret
 
-_LABEL_1B94_:			;This is hit, when the titlescreen timer has been expired.	todo
+_LABEL_1B94_CENTIPEDE_DEMO:			;This is hit, when the titlescreen timer has been expired.	
 	;; This is the first game demo I presume.
 	ld hl, _RAM_C042_
 	ld (hl), $01
@@ -3564,7 +3562,7 @@ _LABEL_1C00_:
 
 _LABEL_1C05_:
 	ld a, $01
-	ld (_RAM_C011_), a
+	ld (_RAM_C011_CENTIPEDE_DEMO_ENA), a
 	ld (ix+11), $01
 	ld (ix+22), $30
 	ld a, (_RAM_C000_GAME_NR)
@@ -3577,7 +3575,7 @@ _LABEL_1C05_:
 
 _LABEL_1C20_:
 	ld a, $01
-	ld (_RAM_C011_), a
+	ld (_RAM_C011_CENTIPEDE_DEMO_ENA), a
 	ld (ix+11), $FF
 	ld (ix+22), $30
 	ld a, (_RAM_C000_GAME_NR)
@@ -3638,7 +3636,7 @@ _DATA_1E02_:
 .dsb 19, $FF
 .db $EF $EF $EF
 
-; 5th entry of Pointer Table from 330D (indexed by _RAM_C023_)
+; 5th entry of Pointer Table from 330D (indexed by _RAM_C023_INGAME_MUSIC_NR)
 ; Data from 1E82 to 1E83 (2 bytes)
 _DATA_1E82_:
 .db $EF $EF
@@ -3934,7 +3932,7 @@ _DATA_2A0B_:
 .db $47 $47 $01 $00 $00 $41 $20 $50 $00 $90 $00 $41 $43 $45 $00 $80
 .db $00 $53 $43 $42 $00 $70 $00 $4B $44 $4A $00 $60 $00
 
-; 6th entry of Pointer Table from 330D (indexed by _RAM_C023_)
+; 6th entry of Pointer Table from 330D (indexed by _RAM_C023_INGAME_MUSIC_NR)
 ; Data from 2A38 to 2AEB (180 bytes)
 _DATA_2A38_:
 .db $54 $4F $4D $00 $50 $00 $4D $41 $42 $00 $40 $00 $44 $41 $4D $00
@@ -4058,7 +4056,7 @@ _LABEL_2B7A_:
 _LABEL_2B8B_:
 	ld hl, _DATA_1991_
 	ld (_RAM_C082_), hl
-	call _LABEL_66C_
+	call _LABEL_66C_LOAD_SPRITES_FROMPOINTER
 	xor a
 	call _LABEL_18C7_
 	call _LABEL_BF7_REM_SPRITES
@@ -4183,7 +4181,7 @@ _LABEL_2D88_:
 	ld hl, _DATA_3007_
 	call _LABEL_6BC_
 	ld a, $02
-	ld (_RAM_C023_), a
+	ld (_RAM_C023_INGAME_MUSIC_NR), a
 	call _LABEL_32F0_
 	ld a, (_RAM_C005__NR_PLAYERS)
 	ld b, a
@@ -4719,7 +4717,7 @@ _LABEL_326B_:
 	ld a, (_RAM_C09B_)
 	or a
 	ret z
-	ld a, (_RAM_C088_)
+	ld a, (_RAM_C088_DEMO_SW)
 	or a
 	ret nz
 	ld hl, _RAM_C042_
@@ -4749,7 +4747,7 @@ _LABEL_32A0_:
 	ld (_RAM_D589_), a
 	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_656_
-	call _LABEL_66C_
+	call _LABEL_66C_LOAD_SPRITES_FROMPOINTER
 	ld hl, _RAM_C042_
 	xor a
 	ld (hl), a
@@ -4795,7 +4793,7 @@ _LABEL_32F0_:
 	push hl
 	push ix
 	push iy
-	ld a, (_RAM_C023_)
+	ld a, (_RAM_C023_INGAME_MUSIC_NR)
 	add a, a
 	ld l, a
 	ld h, $00
@@ -4811,7 +4809,7 @@ _LABEL_32F0_:
 	pop hl
 	ret
 
-; Pointer Table from 330D to 3318 (6 entries, indexed by _RAM_C023_)
+; Pointer Table from 330D to 3318 (6 entries, indexed by _RAM_C023_INGAME_MUSIC_NR)
 _DATA_330D_:
 .dw _DATA_3CBB_ _DATA_4F86_ _DATA_51F1_ _DATA_5F85_ $9E82 $AA38
 
@@ -5943,7 +5941,7 @@ _LABEL_3C86_:
 	or c
 	ret nz
 	ld a, (_RAM_D58E_)
-	ld (_RAM_C023_), a
+	ld (_RAM_C023_INGAME_MUSIC_NR), a
 	call _LABEL_32F0_
 	ret
 
@@ -5951,17 +5949,17 @@ _LABEL_3C9F_:
 	push bc
 	ld bc, $0154
 	ld (_RAM_D58C_), bc
-	ld a, (_RAM_C023_)
+	ld a, (_RAM_C023_INGAME_MUSIC_NR)
 	ld (_RAM_D58E_), a
 	ld a, $03
-	ld (_RAM_C023_), a
+	ld (_RAM_C023_INGAME_MUSIC_NR), a
 	call _LABEL_32F0_
 	xor a
 	ld (_RAM_D58B_), a
 	pop bc
 	ret
 
-; 1st entry of Pointer Table from 330D (indexed by _RAM_C023_)
+; 1st entry of Pointer Table from 330D (indexed by _RAM_C023_INGAME_MUSIC_NR)
 ; Data from 3CBB to 3CBC (2 bytes)
 _DATA_3CBB_:
 .db $FF $FB
@@ -6267,7 +6265,7 @@ _DATA_3CBB_:
 .db $01 $0A $01 $08 $01 $06 $01 $05 $01 $04 $01 $02 $01 $01 $01 $00
 .db $FF $01 $0E $05 $0E $01 $0D $01 $0B $01 $0A $01 $08 $01 $06 $FF
 
-; 2nd entry of Pointer Table from 330D (indexed by _RAM_C023_)
+; 2nd entry of Pointer Table from 330D (indexed by _RAM_C023_INGAME_MUSIC_NR)
 ; Data from 4F86 to 4F87 (2 bytes)
 _DATA_4F86_:
 .db $01 $00
@@ -6310,7 +6308,7 @@ _DATA_4F86_:
 .db $FF $01 $0C $01 $0B $01 $08 $01 $06 $01 $04 $01 $02 $01 $01 $01
 .db $00 $FF
 
-; 3rd entry of Pointer Table from 330D (indexed by _RAM_C023_)
+; 3rd entry of Pointer Table from 330D (indexed by _RAM_C023_INGAME_MUSIC_NR)
 ; Data from 51F1 to 51F2 (2 bytes)
 _DATA_51F1_:
 .db $FF $FD
@@ -6533,7 +6531,7 @@ _DATA_51F1_:
 .db $01 $0A $14 $09 $01 $08 $01 $07 $01 $06 $01 $05 $01 $04 $01 $03
 .db $01 $02 $01 $01 $01 $00 $FF
 
-; 4th entry of Pointer Table from 330D (indexed by _RAM_C023_)
+; 4th entry of Pointer Table from 330D (indexed by _RAM_C023_INGAME_MUSIC_NR)
 ; Data from 5F85 to 5F86 (2 bytes)
 _DATA_5F85_:
 .db $02 $00
@@ -7262,6 +7260,8 @@ _DATA_7FCB_:
 .ORG $0000
 ;This is the Centipede game bank.
 _LABEL_8000_CENTIPEDE_ENTRYPOINT:
+	;; Now this is more interesting than the menu alone. Way too complicated for itself.
+	;; I would like to know more about this part, since I like Centipede, but not the music under this. Very distracting.
 	xor a
 	ld (_RAM_C020_), a
 	ld (_RAM_C034_), a
@@ -7271,7 +7271,7 @@ _LABEL_8000_CENTIPEDE_ENTRYPOINT:
 	ld (_RAM_C04D_), hl
 	ld (_RAM_C003_), a
 	ld (_RAM_C002_), a
-	ld (_RAM_C023_), a
+	ld (_RAM_C023_INGAME_MUSIC_NR), a
 	ld a, $F0
 	ld (_RAM_C035_), a
 	ld a, $80
@@ -7301,12 +7301,12 @@ _LABEL_8000_CENTIPEDE_ENTRYPOINT:
 	ld (_RAM_C024_), hl
 	ld (_RAM_C025_), hl
 	ld a, $14
-	ld (_RAM_C008_), a
-	call _LABEL_8071_
+	ld (_RAM_C008_), a	;Lot of variable initing.
+	call _LABEL_8071_	;so we call this small data loading, then just return? ok...
 	ret
 
-_LABEL_8071_:
-	ld hl, _DATA_912B_
+_LABEL_8071_:			;A small loading, nothing really serious.
+	ld hl, _DATA_912B_	;some data.
 	ld de, _RAM_C0C5_
 	ld bc, $0009
 	ldir
@@ -7826,7 +7826,7 @@ _LABEL_847C_:
 	ld bc, $0000
 	ld (_RAM_D58C_), bc
 	ld a, $04
-	ld (_RAM_C023_), a
+	ld (_RAM_C023_INGAME_MUSIC_NR), a
 	call _LABEL_84EC_
 	ld a, (_RAM_C021_)
 	dec a
@@ -9777,15 +9777,15 @@ _DATA_9E02_:
 ;This might be the Breakout bank.
 _LABEL_C000_:
 	call _LABEL_D02D_
-	ld a, (_RAM_C088_)
+	ld a, (_RAM_C088_DEMO_SW)
 	or a
 	jp z, _LABEL_C00E_
 	call _LABEL_103F_OR_C093
 	ret nz
 _LABEL_C00E_:
 	call _LABEL_6F1_STP_VDPREG1_D_DISPLAY
-	call _LABEL_645_
-	call _LABEL_66C_
+	call _LABEL_645_LOAD_VDP_FROMPOINTER
+	call _LABEL_66C_LOAD_SPRITES_FROMPOINTER
 	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_CLR_C0C5
@@ -9809,7 +9809,7 @@ _LABEL_C00E_:
 	call _LABEL_1089_
 	call _LABEL_C764_
 	ld a, $00
-	ld (_RAM_C023_), a
+	ld (_RAM_C023_INGAME_MUSIC_NR), a
 	call _LABEL_7E7_
 	call _LABEL_C218_
 	ld a, $01
@@ -9820,7 +9820,7 @@ _LABEL_C00E_:
 	call _LABEL_C46_
 	call _LABEL_CBE_
 	call _LABEL_D17_
-	call _LABEL_66C_
+	call _LABEL_66C_LOAD_SPRITES_FROMPOINTER
 	call _LABEL_F92_VDP_REG_SETUP
 	ld a, (_RAM_C003_)
 	ld c, $48
@@ -9861,7 +9861,7 @@ _LABEL_C0C1_:
 	ld (_RAM_C004_), a
 	ld (_RAM_C003_), a
 	ld (_RAM_C002_), a
-	ld (_RAM_C023_), a
+	ld (_RAM_C023_INGAME_MUSIC_NR), a
 	ld a, $00
 	ld (_RAM_C02A_), a
 	xor a
@@ -9913,7 +9913,7 @@ _LABEL_C13D_:
 	xor a
 	ld (_RAM_C002_), a
 	ld a, $00
-	ld (_RAM_C023_), a
+	ld (_RAM_C023_INGAME_MUSIC_NR), a
 	ld bc, $0000
 	ld (_RAM_D58C_), bc
 	call _LABEL_C1B4_
@@ -11986,15 +11986,15 @@ _DATA_DD29_:
 ;This is the Missile Command bank.
 _LABEL_10000_:
 	call _LABEL_11358_
-	ld a, (_RAM_C088_)
+	ld a, (_RAM_C088_DEMO_SW)
 	or a
 	jp z, _LABEL_1000E_
 	call _LABEL_103F_OR_C093
 	ret nz
 _LABEL_1000E_:
 	call _LABEL_6F1_STP_VDPREG1_D_DISPLAY
-	call _LABEL_645_
-	call _LABEL_66C_
+	call _LABEL_645_LOAD_VDP_FROMPOINTER
+	call _LABEL_66C_LOAD_SPRITES_FROMPOINTER
 	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_CLR_C0C5
@@ -12019,7 +12019,7 @@ _LABEL_1000E_:
 	xor a
 	call _LABEL_1089_
 	ld a, $05
-	ld (_RAM_C023_), a
+	ld (_RAM_C023_INGAME_MUSIC_NR), a
 	call _LABEL_7E7_
 	ld a, $01
 	ld (_RAM_C032_), a
@@ -12159,7 +12159,7 @@ _LABEL_10183_:
 	ld (_RAM_C004_), a
 	ld (_RAM_C003_), a
 	ld (_RAM_C002_), a
-	ld (_RAM_C023_), a
+	ld (_RAM_C023_INGAME_MUSIC_NR), a
 	ld (_RAM_C031_), a
 	ld (_RAM_C087_), a
 	ld (_RAM_C086_), a
@@ -12947,7 +12947,7 @@ _LABEL_10714_:
 	srl a
 	srl a
 	srl a
-	ld (_RAM_C011_), a
+	ld (_RAM_C011_CENTIPEDE_DEMO_ENA), a
 	ld a, (ix+3)
 	srl a
 	srl a
@@ -14223,7 +14223,7 @@ _LABEL_1130C_:
 
 _LABEL_11358_:
 	call _LABEL_3479_
-	call _LABEL_66C_
+	call _LABEL_66C_LOAD_SPRITES_FROMPOINTER
 	ld hl, $19F2
 	ld (_RAM_C07E_), hl
 	ld a, $01
