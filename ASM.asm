@@ -1193,32 +1193,35 @@ _LABEL_5B3_:
 	ld de, $11F2
 	ld bc, $0020
 	call _LABEL_70F_FILL_RAM ;Clear some more RAM.
-	call _LABEL_FBE_
-	call $80F5	; Possibly invalid
-	call $8DCC	; Possibly invalid
-	call _LABEL_777_
-	call _LABEL_7E7_
+	call _LABEL_FBE_JOYPAD	 ;Some joypad reading.
+	call _LABEL_80F5_	 ;If this is commented out, then the background graphics are not drawn at all. This is some sort of tilemap thing.
+	nop
+	nop
+	nop
+	call _LABEL_8DCC_DRAW_MUSHROOM_PLFIELD	 ;This draws the mushroom playfield.
+	call _LABEL_777_			 ;I may think this is some centipede collision thing.
+	call _LABEL_7E7_	;Nothing noticeable. Some RAM copy that it does, but nothing apparent.
 	call _LABEL_F92_VDP_REG_SETUP
 	xor a
-	call _LABEL_18C7_
-	call _LABEL_C46_
-	call _LABEL_CBE_
-	call _LABEL_D17_
+	call _LABEL_18C7_	;Without this, the player and enemy sprites are not updated or shown correctly.
+	call _LABEL_C46_UPD_SCORE
+	call _LABEL_CBE_	;Nothing!
+	call _LABEL_D17_	;Nada.
 	ld a, (_RAM_C003_)
 	ld c, $48
-	call _LABEL_B8E_
-	call _LABEL_32F0_
+	call _LABEL_B8E_	;Without this, at the beginning you won't get the "Get Ready" sound.
+	call _LABEL_32F0_	;No music will start at the beginning of the game. There will be music once the player plays with a new life.
 	xor a
 	ld (_RAM_C09B_), a
 _LABEL_615_:
 	ei
 	halt
-	call _LABEL_C46_
-	call _LABEL_CBE_
-	call _LABEL_842_
-	call $8131	; Possibly invalid
-	call _LABEL_785_
-	call $847C	; Possibly invalid
+	call _LABEL_C46_UPD_SCORE	;This is the score update.
+	call _LABEL_CBE_	;Nothing noticeable.
+	call _LABEL_842_	;This controls the game updates, if this is commented out, then the game just stops, and won't advance.
+	call _LABEL_8131_CENTIPEDE_SPAWN	;This controls the Centipede, in Centipede. Commented out, the pest won't appear.
+	;; call _LABEL_785_	;Other pests won't spawn.
+	call $847C	; Possibly invalid	todo
 	call _LABEL_8FD_
 	call _LABEL_D7D_
 	call _LABEL_326B_
@@ -2095,7 +2098,7 @@ _LABEL_C41_:
 	inc b
 	jp _LABEL_C2E_
 
-_LABEL_C46_:
+_LABEL_C46_UPD_SCORE:
 	ld a, (_RAM_C032_)
 	or a
 	ret z
@@ -2636,7 +2639,7 @@ _LABEL_FB4_WAIT4VBLANK:			;This waits for VBLank.
 	ex af, af'
 	ret
 
-_LABEL_FBE_:			;now we talkin'!
+_LABEL_FBE_JOYPAD:			;now we talkin'!
 	ld a, (_RAM_C088_DEMO_SW)
 	or a
 	jp nz, _LABEL_1044_DEMO_INPUT	;This is the demo input's switch. If this is 1, then the game is in demo mode, runs normally otherwise. I will call this the demo input code for now.
@@ -7427,7 +7430,7 @@ _LABEL_8113_:
 	call _LABEL_8DD_
 	ret
 
-_LABEL_8131_:
+_LABEL_8131_CENTIPEDE_SPAWN:
 	ld a, (_RAM_C020_)
 	or a
 	ret nz
@@ -7734,7 +7737,7 @@ _DATA_83E1_:
 ; 1st entry of Jump Table from 83E1 (indexed by unknown)
 _LABEL_83E5_:
 	call _LABEL_8445_
-	call _LABEL_FBE_
+	call _LABEL_FBE_JOYPAD
 	ld a, (_RAM_C003_)
 	or a
 	ld a, (_RAM_C05D_JOYPAD1)
@@ -7838,7 +7841,7 @@ _LABEL_84A6_:
 	call z, _LABEL_1906_
 	call _LABEL_80F5_
 	call _LABEL_6D6_
-	call _LABEL_C46_
+	call _LABEL_C46_UPD_SCORE
 	call _LABEL_CBE_
 	ld a, (_RAM_C003_)
 	ld c, $48
@@ -9008,7 +9011,7 @@ _LABEL_8DA3_:
 	call _LABEL_8D08_
 	ret
 
-_LABEL_8DCC_:
+_LABEL_8DCC_DRAW_MUSHROOM_PLFIELD:
 	ld b, $1E
 	ld c, $11
 _LABEL_8DD0_:
@@ -9796,7 +9799,7 @@ _LABEL_C00E_:
 	ld bc, $0300
 	call _LABEL_70F_FILL_RAM
 	call _LABEL_6E2_
-	call _LABEL_FBE_
+	call _LABEL_FBE_JOYPAD
 	call _LABEL_C0C1_
 	call _LABEL_C1D8_
 	call _LABEL_C287_
@@ -9817,7 +9820,7 @@ _LABEL_C00E_:
 	ld (_RAM_C03A_), a
 	ei
 	halt
-	call _LABEL_C46_
+	call _LABEL_C46_UPD_SCORE
 	call _LABEL_CBE_
 	call _LABEL_D17_
 	call _LABEL_66C_LOAD_SPRITES_FROMPOINTER
@@ -9831,7 +9834,7 @@ _LABEL_C00E_:
 _LABEL_C089_:
 	ei
 	halt
-	call _LABEL_C46_
+	call _LABEL_C46_UPD_SCORE
 	call _LABEL_CBE_
 	call _LABEL_8FD_
 	call _LABEL_842_
@@ -9927,7 +9930,7 @@ _LABEL_C167_:
 	call z, _LABEL_1906_
 	call _LABEL_C218_
 	call _LABEL_6D6_
-	call _LABEL_C46_
+	call _LABEL_C46_UPD_SCORE
 	call _LABEL_CBE_
 	ld hl, (_RAM_C01E_)
 	ld (_RAM_C016_), hl
@@ -10534,7 +10537,7 @@ _LABEL_C78C_:
 	or a
 	ld a, (_RAM_C05D_JOYPAD1)
 	jp z, _LABEL_C7A8_
-	call _LABEL_FBE_
+	call _LABEL_FBE_JOYPAD
 	ld a, (_RAM_C060_)
 _LABEL_C7A8_:
 	ld e, a
@@ -10643,7 +10646,7 @@ _LABEL_C869_:
 	ret
 
 _LABEL_C871_:
-	call _LABEL_FBE_
+	call _LABEL_FBE_JOYPAD
 	ld a, (_RAM_C003_)
 	or a
 	ld a, (_RAM_C05D_JOYPAD1)
@@ -12004,7 +12007,7 @@ _LABEL_1000E_:
 	ld de, $0000
 	ld bc, $0300
 	call _LABEL_70F_FILL_RAM
-	call _LABEL_FBE_
+	call _LABEL_FBE_JOYPAD
 	call _LABEL_10183_
 	call _LABEL_6D6_
 	call _LABEL_777_
@@ -12024,7 +12027,7 @@ _LABEL_1000E_:
 	ld a, $01
 	ld (_RAM_C032_), a
 	ld (_RAM_C03A_), a
-	call _LABEL_C46_
+	call _LABEL_C46_UPD_SCORE
 	call _LABEL_D17_
 	ld a, (_RAM_C003_)
 	ld c, $48
@@ -12035,7 +12038,7 @@ _LABEL_1000E_:
 _LABEL_1007D_:
 	ei
 	halt
-	call _LABEL_C46_
+	call _LABEL_C46_UPD_SCORE
 	call _LABEL_8FD_
 	call _LABEL_FF6_JOYPAD
 	call _LABEL_842_
@@ -12386,7 +12389,7 @@ _LABEL_10342_:
 	call _LABEL_842_
 	ld a, $01
 	ld (_RAM_C032_), a
-	call _LABEL_C46_
+	call _LABEL_C46_UPD_SCORE
 	call _LABEL_D17_
 	call _LABEL_10436_
 	ld a, (_RAM_C033_)
@@ -12500,7 +12503,7 @@ _LABEL_1041B_:
 .db $3A $05 $C0 $FE $02 $CC $82 $83 $C9
 
 _LABEL_10436_:
-	call _LABEL_C46_
+	call _LABEL_C46_UPD_SCORE
 	ld a, (_RAM_C003_)
 	ld c, $48
 	call _LABEL_B8E_
@@ -12542,7 +12545,7 @@ _LABEL_10467_:
 	push bc
 	ld a, $01
 	call _LABEL_112AE_
-	call _LABEL_C46_
+	call _LABEL_C46_UPD_SCORE
 	pop bc
 	pop hl
 	inc b
@@ -12582,7 +12585,7 @@ _LABEL_1049D_:
 	push bc
 	ld a, $00
 	call _LABEL_112AE_
-	call _LABEL_C46_
+	call _LABEL_C46_UPD_SCORE
 	pop bc
 	pop hl
 	inc b
