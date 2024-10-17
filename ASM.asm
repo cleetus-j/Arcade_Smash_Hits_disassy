@@ -25,7 +25,7 @@ _RAM_C000_GAME_NR db		;This is the selected game number.
 	;; 02 is Missile Command
 	;; 03 and onwards is the name entry screen.
 _RAM_C001_GAME_NR_BCKP db			;Also used with some game selection, but mostly just a copy of the original number. I'll mark it as Game Nr backup or something.
-_RAM_C002_ db
+_RAM_C002_CENTIPEDE_PLYR_HIT db					;Centipede player has been hit.
 _RAM_C003_ db
 _RAM_C004_ db
 _RAM_C005__NR_PLAYERS db
@@ -50,7 +50,7 @@ _RAM_C01A_ dw
 _RAM_C01C_ dw
 _RAM_C01E_ dw
 _RAM_C020_ db
-_RAM_C021_ db
+_RAM_C021_PLYR1_LIVES db
 _RAM_C022_ db
 _RAM_C023_INGAME_MUSIC_NR db
 _RAM_C024_ db
@@ -1108,12 +1108,12 @@ _LABEL_52E_:
 	ld (_RAM_C088_DEMO_SW), a
 	call _LABEL_3087_
 	ld a, (_RAM_C09A_)
-	ld (_RAM_C021_), a
+	ld (_RAM_C021_PLYR1_LIVES), a
 	ld a, (_RAM_C094_XTRA_CREDITS)
 	or a
 	jp z, _LABEL_547_
 	ld a, $FF
-	ld (_RAM_C021_), a
+	ld (_RAM_C021_PLYR1_LIVES), a
 _LABEL_547_:
 	call _LABEL_58A_
 	call _LABEL_2D88_
@@ -1138,7 +1138,7 @@ _LABEL_559_GAME_DEMO:
 	ld a, $01
 	ld (_RAM_C088_DEMO_SW), a
 	ld a, $04
-	ld (_RAM_C021_), a
+	ld (_RAM_C021_PLYR1_LIVES), a
 	ld a, $01
 	ld (_RAM_C005__NR_PLAYERS), a
 	call _LABEL_58A_
@@ -1160,14 +1160,14 @@ _LABEL_58A_:
 
 ; Jump Table from 59F to 5A2 (2 entries, indexed by _RAM_C000_GAME_NR)
 _DATA_59F_:
-.dw _LABEL_5A5_ $8000
+.dw _LABEL_5A5_ _LABEL_8000_CENTIPEDE_ENTRYPOINT;; $8000
 
 ; Data from 5A3 to 5A4 (2 bytes)
 .db $00 $80
 
 ; 1st entry of Jump Table from 59F (indexed by _RAM_C000_GAME_NR)
-_LABEL_5A5_:
-	call $8E61	; Possibly invalid
+_LABEL_5A5_:		      ;This is the real Centipede entry point or something.
+	call _LABEL_8E61_ ;; $8E61		 Possibly invalid;
 	ld a, (_RAM_C088_DEMO_SW)
 	or a
 	jp z, _LABEL_5B3_
@@ -1195,9 +1195,9 @@ _LABEL_5B3_:
 	call _LABEL_70F_FILL_RAM ;Clear some more RAM.
 	call _LABEL_FBE_JOYPAD	 ;Some joypad reading.
 	call _LABEL_80F5_	 ;If this is commented out, then the background graphics are not drawn at all. This is some sort of tilemap thing.
-	nop
-	nop
-	nop
+	;; nop
+	;; nop
+	;; nop
 	call _LABEL_8DCC_DRAW_MUSHROOM_PLFIELD	 ;This draws the mushroom playfield.
 	call _LABEL_777_			 ;I may think this is some centipede collision thing.
 	call _LABEL_7E7_	;Nothing noticeable. Some RAM copy that it does, but nothing apparent.
@@ -1220,16 +1220,16 @@ _LABEL_615_:
 	call _LABEL_CBE_	;Nothing noticeable.
 	call _LABEL_842_	;This controls the game updates, if this is commented out, then the game just stops, and won't advance.
 	call _LABEL_8131_CENTIPEDE_SPAWN	;This controls the Centipede, in Centipede. Commented out, the pest won't appear.
-	;; call _LABEL_785_	;Other pests won't spawn.
-	call $847C	; Possibly invalid	todo
-	call _LABEL_8FD_
-	call _LABEL_D7D_
-	call _LABEL_326B_
-	ld b, $01
-	ld a, (_RAM_C005__NR_PLAYERS)
+	call _LABEL_785_OTHER_CRITTER_SPAWN	;Other pests won't spawn.
+	call _LABEL_847C_HIT_DEATH ;; $847C	; Possibly invalid	;This is ran, when you die, but no life will be subtracted. The hit is registered, but that's it, you play.
+	call _LABEL_8FD_SHOW_PLYR_NME_SPRITES	;Sprites are not processed. The player and enemy ones. The shots are shown, and the hits are registered, but that's it.
+	call _LABEL_D7D_	;Nothing seems to be different. Same pointer BS that makes no sense yet, as the RAM locations are not mapped.
+	call _LABEL_326B_	;Nothing here either. Some PSG muting happens at the end, and demo play related as well.
+	ld b, $01		;todo
+	ld a, (_RAM_C005__NR_PLAYERS) ;Get the number of players.
 	cp $02
-	jp nz, _LABEL_63D_
-	inc b
+	jp nz, _LABEL_63D_	;Id this maybe the two player game?
+	inc b			;Maybe this is increasing the player nr?
 _LABEL_63D_:
 	ld a, (_RAM_C004_)
 	cp b
@@ -1429,7 +1429,7 @@ _LABEL_77F_:
 	djnz _LABEL_77F_
 	ret
 
-_LABEL_785_:
+_LABEL_785_OTHER_CRITTER_SPAWN:
 	ld hl, (_RAM_C018_)
 	ld de, (_RAM_C01C_)
 	and a
@@ -1646,7 +1646,7 @@ _LABEL_8F1_:
 	pop bc
 	ret
 
-_LABEL_8FD_:
+_LABEL_8FD_SHOW_PLYR_NME_SPRITES:
 	ld b, $19
 	ld ix, _RAM_C0C5_
 	xor a
@@ -2164,7 +2164,7 @@ _LABEL_CBE_:
 	call _LABEL_A14_
 	ld hl, (_RAM_C07E_)
 	ld (_RAM_C00C_), hl
-	ld a, (_RAM_C021_)
+	ld a, (_RAM_C021_PLYR1_LIVES)
 	cp $05
 	jp c, _LABEL_CEF_
 	push af
@@ -2251,9 +2251,9 @@ _LABEL_D56_:
 	ld a, c
 	or a
 	ret z
-	ld a, (_RAM_C021_)
+	ld a, (_RAM_C021_PLYR1_LIVES)
 	inc a
-	ld (_RAM_C021_), a
+	ld (_RAM_C021_PLYR1_LIVES), a
 	call _LABEL_3C9F_
 	ld a, $01
 	ld (_RAM_C03A_), a
@@ -2263,7 +2263,8 @@ _LABEL_D56_:
 .db $1A $96 $27 $D2 $75 $0D $3E $59 $37 $12 $2B $1B $1A $9E $27 $12
 .db $C9
 
-_LABEL_D7D_:
+_LABEL_D7D_:			;another thing from centipede that does not seem to do anything visible.
+	;; Some sort of pointer stuff, nor really legible yet.
 	ld hl, (_RAM_C072_)
 	ld de, $0080
 	add hl, de
@@ -3253,7 +3254,7 @@ _LABEL_18F9_:
 _LABEL_1906_:
 	call _LABEL_1918_
 	call _LABEL_D17_
-	ld a, (_RAM_C021_)
+	ld a, (_RAM_C021_PLYR1_LIVES)
 	or a
 	ret nz
 	call _LABEL_1918_
@@ -3475,7 +3476,7 @@ _LABEL_1B6A_:			;Main menu's main loop? It sure seems like it.
 	ei
 	halt
 	push bc
-	call _LABEL_8FD_
+	call _LABEL_8FD_SHOW_PLYR_NME_SPRITES
 	call _LABEL_842_
 	pop bc
 	ld a, (_RAM_C011_CENTIPEDE_DEMO_ENA)	;Demo timer? But only for Centipede as it seems.
@@ -4716,7 +4717,7 @@ _LABEL_3263_:
 	pop af
 	retn
 
-_LABEL_326B_:
+_LABEL_326B_:			;this is one part of that centipede stuff
 	ld a, (_RAM_C09B_)
 	or a
 	ret z
@@ -7273,7 +7274,7 @@ _LABEL_8000_CENTIPEDE_ENTRYPOINT:
 	ld hl, $0000
 	ld (_RAM_C04D_), hl
 	ld (_RAM_C003_), a
-	ld (_RAM_C002_), a
+	ld (_RAM_C002_CENTIPEDE_PLYR_HIT), a
 	ld (_RAM_C023_INGAME_MUSIC_NR), a
 	ld a, $F0
 	ld (_RAM_C035_), a
@@ -7814,31 +7815,31 @@ _LABEL_8454_:
 	ld (_RAM_C03A_), a
 	ld (ix+5), $00
 	ld a, $01
-	ld (_RAM_C002_), a
+	ld (_RAM_C002_CENTIPEDE_PLYR_HIT), a
 	ret
 
-_LABEL_847C_:
-	ld a, (_RAM_C002_)
+_LABEL_847C_HIT_DEATH:		;Sooo, this is only used with Centipede, and nothing else.
+	ld a, (_RAM_C002_CENTIPEDE_PLYR_HIT)	;If this is not zero, plyr 1 will lose a life.
 	or a
-	ret z
+	ret z			;We return, if there's no hit detected.
 	ld a, $02
 	ld (_RAM_D58A_), a
-	call _LABEL_3494_
+	call _LABEL_3494_	;check this later
 	xor a
-	ld (_RAM_C002_), a
+	ld (_RAM_C002_CENTIPEDE_PLYR_HIT), a ;clear the hit flag.
 	ld bc, $0000
 	ld (_RAM_D58C_), bc
 	ld a, $04
-	ld (_RAM_C023_INGAME_MUSIC_NR), a
-	call _LABEL_84EC_
-	ld a, (_RAM_C021_)
+	ld (_RAM_C023_INGAME_MUSIC_NR), a ;turn to an empty music track.
+	call _LABEL_84EC_		  ;check later.
+	ld a, (_RAM_C021_PLYR1_LIVES)
 	dec a
-	ld (_RAM_C021_), a
-	jp z, _LABEL_84C6_
+	ld (_RAM_C021_PLYR1_LIVES), a ;Decrease lives for the player.
+	jp z, _LABEL_84C6_	      ;If we are out of lives, game over.
 _LABEL_84A6_:
 	ld a, (_RAM_C005__NR_PLAYERS)
 	cp $02
-	call z, _LABEL_1906_
+	call z, _LABEL_1906_	;This, I guess works with the two player part.
 	call _LABEL_80F5_
 	call _LABEL_6D6_
 	call _LABEL_C46_UPD_SCORE
@@ -9139,7 +9140,7 @@ _LABEL_8E61_:
 _LABEL_8EFD_:
 	ei
 	halt
-	call _LABEL_8FD_
+	call _LABEL_8FD_SHOW_PLYR_NME_SPRITES
 	call _LABEL_842_
 	call _LABEL_1034_PADPRESSD
 	jp nz, _LABEL_8F13_
@@ -9836,7 +9837,7 @@ _LABEL_C089_:
 	halt
 	call _LABEL_C46_UPD_SCORE
 	call _LABEL_CBE_
-	call _LABEL_8FD_
+	call _LABEL_8FD_SHOW_PLYR_NME_SPRITES
 	call _LABEL_842_
 	call _LABEL_D7D_
 	call _LABEL_C13D_
@@ -9863,7 +9864,7 @@ _LABEL_C0C1_:
 	ld (_RAM_C014_), a
 	ld (_RAM_C004_), a
 	ld (_RAM_C003_), a
-	ld (_RAM_C002_), a
+	ld (_RAM_C002_CENTIPEDE_PLYR_HIT), a
 	ld (_RAM_C023_INGAME_MUSIC_NR), a
 	ld a, $00
 	ld (_RAM_C02A_), a
@@ -9907,22 +9908,22 @@ _LABEL_C0C1_:
 	ret
 
 _LABEL_C13D_:
-	ld a, (_RAM_C002_)
+	ld a, (_RAM_C002_CENTIPEDE_PLYR_HIT)
 	or a
 	ret z
 	ld a, $02
 	ld (_RAM_D58A_), a
 	call _LABEL_3494_
 	xor a
-	ld (_RAM_C002_), a
+	ld (_RAM_C002_CENTIPEDE_PLYR_HIT), a
 	ld a, $00
 	ld (_RAM_C023_INGAME_MUSIC_NR), a
 	ld bc, $0000
 	ld (_RAM_D58C_), bc
 	call _LABEL_C1B4_
-	ld a, (_RAM_C021_)
+	ld a, (_RAM_C021_PLYR1_LIVES)
 	dec a
-	ld (_RAM_C021_), a
+	ld (_RAM_C021_PLYR1_LIVES), a
 	jp z, _LABEL_C191_
 _LABEL_C167_:
 	ld a, (_RAM_C005__NR_PLAYERS)
@@ -10606,7 +10607,7 @@ _LABEL_C80A_:
 	ld (_RAM_C03A_), a
 	ld (ix+5), $00
 	ld a, $01
-	ld (_RAM_C002_), a
+	ld (_RAM_C002_CENTIPEDE_PLYR_HIT), a
 	ret
 
 _LABEL_C836_:
@@ -11565,7 +11566,7 @@ _LABEL_D02D_:
 _LABEL_D0C3_:
 	ei
 	halt
-	call _LABEL_8FD_
+	call _LABEL_8FD_SHOW_PLYR_NME_SPRITES
 	call _LABEL_842_
 	call _LABEL_1034_PADPRESSD
 	jp nz, _LABEL_D0F1_
@@ -12039,7 +12040,7 @@ _LABEL_1007D_:
 	ei
 	halt
 	call _LABEL_C46_UPD_SCORE
-	call _LABEL_8FD_
+	call _LABEL_8FD_SHOW_PLYR_NME_SPRITES
 	call _LABEL_FF6_JOYPAD
 	call _LABEL_842_
 	call _LABEL_D7D_
@@ -12161,7 +12162,7 @@ _LABEL_10183_:
 	ld (_RAM_C014_), a
 	ld (_RAM_C004_), a
 	ld (_RAM_C003_), a
-	ld (_RAM_C002_), a
+	ld (_RAM_C002_CENTIPEDE_PLYR_HIT), a
 	ld (_RAM_C023_INGAME_MUSIC_NR), a
 	ld (_RAM_C031_), a
 	ld (_RAM_C087_), a
@@ -12221,7 +12222,7 @@ _LABEL_1021C_:
 	ld a, $01
 	ld (_RAM_C084_), a
 	ld a, $18
-	ld (_RAM_C021_), a
+	ld (_RAM_C021_PLYR1_LIVES), a
 	ld a, $84
 	ld (_RAM_C085_), a
 	ld a, (_RAM_C084_)
@@ -12277,7 +12278,7 @@ _LABEL_1026E_:
 	ld (_RAM_C03A_), a
 	ld (ix+5), $00
 	ld a, $01
-	ld (_RAM_C002_), a
+	ld (_RAM_C002_CENTIPEDE_PLYR_HIT), a
 	ret
 
 _LABEL_1029A_:
@@ -12430,7 +12431,7 @@ _LABEL_1039A_:
 	or a
 	push af
 	call nz, _LABEL_10455_
-	ld a, (_RAM_C021_)
+	ld a, (_RAM_C021_PLYR1_LIVES)
 	or a
 	call nz, _LABEL_1048E_
 	ld b, $64
@@ -13155,9 +13156,9 @@ _LABEL_10875_:
 	dec a
 	ld (iy+27), a
 	push af
-	ld a, (_RAM_C021_)
+	ld a, (_RAM_C021_PLYR1_LIVES)
 	dec a
-	ld (_RAM_C021_), a
+	ld (_RAM_C021_PLYR1_LIVES), a
 	pop af
 	push af
 	ld a, (_RAM_C084_)
@@ -13732,9 +13733,9 @@ _LABEL_10CF4_:
 	ld (iy+3), $A8
 	ld (iy+5), $01
 	ld (iy+23), $00
-	ld a, (_RAM_C021_)
+	ld a, (_RAM_C021_PLYR1_LIVES)
 	sub (iy+27)
-	ld (_RAM_C021_), a
+	ld (_RAM_C021_PLYR1_LIVES), a
 	ld (iy+27), $00
 	ld a, (_RAM_C084_)
 	cp (iy+15)
@@ -14284,7 +14285,7 @@ _LABEL_11384_:
 _LABEL_113FA_:
 	ei
 	halt
-	call _LABEL_8FD_
+	call _LABEL_8FD_SHOW_PLYR_NME_SPRITES
 	call _LABEL_842_
 	call _LABEL_1034_PADPRESSD
 	jp nz, _LABEL_1142B_
