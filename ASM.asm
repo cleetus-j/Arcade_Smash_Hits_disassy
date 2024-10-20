@@ -86,7 +86,7 @@ _RAM_C03E_ db
 _RAM_C03F_ db
 _RAM_C040_ db
 _RAM_C041_ db
-_RAM_C042_ db
+_RAM_C042_UPD_GAME_SPRT db
 _RAM_C043_ dw
 _RAM_C045_ dw
 _RAM_C047_ dw
@@ -1213,7 +1213,7 @@ _LABEL_5B3_:
 	call _LABEL_32F0_	;No music will start at the beginning of the game. There will be music once the player plays with a new life.
 	xor a
 	ld (_RAM_C09B_), a
-_LABEL_615_:
+_LABEL_615_CENTIPEDE_MAIN_LOOP:
 	ei
 	halt
 	call _LABEL_C46_UPD_SCORE	;This is the score update.
@@ -1233,8 +1233,8 @@ _LABEL_615_:
 _LABEL_63D_:
 	ld a, (_RAM_C004_)
 	cp b
-	jp nz, _LABEL_615_
-	ret
+	jp nz, _LABEL_615_CENTIPEDE_MAIN_LOOP
+	ret			;Yup, this seems to be the main loop for Centipede.
 
 _LABEL_645_LOAD_VDP_FROMPOINTER:			;Clears the screen, then loads some things into the VDP via a pointer.
 	ld b, $03
@@ -1979,7 +1979,7 @@ _LABEL_B54_:
 
 _LABEL_B8E_:
 	call _LABEL_3319_DISABLE_PSG
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $01
 	ld b, a
 	ld a, (_RAM_C04D_)
@@ -2008,7 +2008,7 @@ _LABEL_B8E_:
 	ld d, (hl)
 	ld l, $00
 	call _LABEL_C02_
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $01
 	pop af
 	ld b, $04
@@ -2027,7 +2027,7 @@ _LABEL_BDA_:
 	halt
 	djnz _LABEL_BDA_
 	di
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $00
 	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_656_
@@ -2582,7 +2582,7 @@ _LABEL_F45_:
 _LABEL_F58_:
 	ld a, $01
 	ld (_RAM_C009_), a
-	ld a, (_RAM_C042_)
+	ld a, (_RAM_C042_UPD_GAME_SPRT)
 	or a
 	call z, _LABEL_A9E_
 	call _LABEL_3C7A_
@@ -3403,7 +3403,7 @@ _DATA_1A86_:
 _LABEL_1A9E_MAIN_MENU_ENTRY:
 	ld a, (_RAM_C001_GAME_NR_BCKP)
 	ld (_RAM_C000_GAME_NR), a
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $01
 	ld a, $01
 	ld (_RAM_C041_), a
@@ -3463,7 +3463,7 @@ _LABEL_1A9E_MAIN_MENU_ENTRY:
 	ld a, (hl)
 	ld (ix+3), a
 	ld (ix+22), $00
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $00
 	xor a
 	ld (_RAM_C011_CENTIPEDE_DEMO_ENA), a
@@ -3499,7 +3499,7 @@ _LABEL_1B82_:			;Some sort of timer that decreases bc.
 
 _LABEL_1B94_CENTIPEDE_DEMO:			;This is hit, when the titlescreen timer has been expired.	
 	;; This is the first game demo I presume.
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $01
 	ld a, $04
 	ld (_RAM_D58A_), a	
@@ -3513,7 +3513,7 @@ _LABEL_1BA3_:
 	call _LABEL_BF7_REM_SPRITES ;Remove the little fella on the arrow. Or not. Oh yeah, just disable sprite drawing.
 	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_CLR_C0C5
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $00
 	ld a, $01
 	or a
@@ -3780,7 +3780,7 @@ _DATA_1E82_:
 	push af
 	ld a, $01
 	call _LABEL_18A6_
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $00
 	ld hl, _RAM_C04D_
 	ld (hl), $00
@@ -4066,7 +4066,7 @@ _LABEL_2B8B_:
 	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_74B_CLR_C0C5
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $00
 	ret
 
@@ -4081,7 +4081,7 @@ _LABEL_2BAF_:			;This is the last part that is not identified in the menu. i was
 	;; nop
 	;; nop
 	call _LABEL_18C7_	;I still dont know what this is, but changing numbers dont do anything.
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $01
 	call _LABEL_BF7_REM_SPRITES ;From the start of this, maybe some sprite clearing. The code starts with the the usual sprite addresses, and then disables sprites. Though it gives a 64 entry loop, only one would be enough.
  				
@@ -4117,13 +4117,13 @@ _LABEL_2BF6_:
 	or l
 	jp nz, _LABEL_2BF6_
 _LABEL_2C04_:
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $01
 	ld a, $01
 	call _LABEL_18A6_
 	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_BF7_REM_SPRITES
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $00
 	ret
 
@@ -4167,7 +4167,7 @@ _DATA_2CC8_:
 _LABEL_2D88_:
 	ld a, $01
 	call _LABEL_18C7_
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $01
 	call _LABEL_BF7_REM_SPRITES
 	ld hl, $19F2
@@ -4272,7 +4272,7 @@ _LABEL_2E6C_:
 	pop bc
 	dec b
 	jp nz, _LABEL_2DCA_
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $01
 	ld a, $20
 	ld (_RAM_D58A_), a
@@ -4284,7 +4284,7 @@ _LABEL_2E85_:
 	ld a, $01
 	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_BF7_REM_SPRITES
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $00
 	ret
 
@@ -4512,7 +4512,7 @@ _DATA_3007_:
 _LABEL_3087_:			;We jump here, shortly after the main loop, but this is accessed after a new game is started.
 	ld a, $01		
 	call _LABEL_18C7_
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $01
 	call _LABEL_BF7_REM_SPRITES
 	ld hl, $19F2		;At this place, we have the heart graphic.
@@ -4592,11 +4592,11 @@ _LABEL_3139_:
 _LABEL_3140_:
 	ld a, $01
 	call _LABEL_18A6_
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $01
 	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_BF7_REM_SPRITES
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $00
 	ret
 
@@ -4724,7 +4724,7 @@ _LABEL_326B_:			;this is one part of that centipede stuff
 	ld a, (_RAM_C088_DEMO_SW)
 	or a
 	ret nz
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $01
 	call _LABEL_73D_CLEAR_C5C9
 	ei
@@ -4752,7 +4752,7 @@ _LABEL_32A0_:
 	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_656_
 	call _LABEL_66C_LOAD_SPRITES_FROMPOINTER
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	xor a
 	ld (hl), a
 	ld (_RAM_C09B_), a
@@ -7184,7 +7184,7 @@ _LABEL_69F6_:
 _LABEL_69FB_LEGAL_SCR1:			;i was here 
 	ld a, $01
 	call _LABEL_18C7_
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $01
 	call _LABEL_BF7_REM_SPRITES
 	ld hl, $19F2
@@ -7210,13 +7210,13 @@ _LABEL_6A35_:
 	ld a, h
 	or l
 	jp nz, _LABEL_6A35_
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $01
 	ld a, $01
 	call _LABEL_18A6_
 	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_BF7_REM_SPRITES
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $00
 	ret
 
@@ -7256,7 +7256,7 @@ _DATA_7FCB_:
 
 .BANK 1 SLOT 1
 .ORG $0000
-
+	;; This is the Sega cart header or something like that.
 ; Data from 7FF0 to 7FFF (16 bytes)
 .db $54 $4D $52 $20 $53 $45 $47 $41 $20 $20 $9B $2E $32 $70 $20 $40
 
@@ -7315,26 +7315,29 @@ _LABEL_8071_:			;A small loading, nothing really serious.
 	ld bc, $0009
 	ldir
 	ret
-
-_LABEL_807D_:
+	;; I genuinely thought this might be the code entry for the game. But alas it's not.
+_LABEL_807D_CANTIPEDE_AFTER_DEATH: 			;Only called once. Let's see what's this. Got it: This is called, when you die in Centpede, and the sprites are removed from the screen, before the mushrooms are "repaired", and a new life is loaded in.
 	ei
-	ld hl, _RAM_C042_
-	ld (hl), $01
-	call _LABEL_BF7_REM_SPRITES
+	ld hl, _RAM_C042_UPD_GAME_SPRT
+	ld (hl), $01		;Stop updating sprites.
+	call _LABEL_BF7_REM_SPRITES ;Remove everything from the screen.
 	ld c, $01
 _LABEL_8088_:
 	ld b, $02
-_LABEL_808A_:
-	call _LABEL_EA4_
+_LABEL_808A_:			;todo
+	call _LABEL_EA4_	;Mushrooms go crazy if this is commented out. When you die, the game resets the mushrooms to be whole again. This calcultes some stuff for it.
+	;; nop
+	;; nop
+	;; nop
 	ld (_RAM_C00B_), a
 	ld e, a
 	and $03
 	cp $03
-	jp z, _LABEL_80CC_
+	jp z, _LABEL_80CC_	;Whole mushroom path.
 	bit 3, d
-	jp nz, _LABEL_80A1_
+	jp nz, _LABEL_80A1_	;If this is just z, then the game goes through every mushroom, and fixes them. So likely bit 3 tells the game that the given mushroom is hit or not.
 	or a
-	jp z, _LABEL_80CC_
+	jp z, _LABEL_80CC_	;If this is set to nz, then the game goes through every non-damaged mushroom.
 _LABEL_80A1_:
 	ld d, $01
 	ld e, $45
@@ -7379,7 +7382,7 @@ _LABEL_80E0_:
 	ld a, b
 	or c
 	jp nz, _LABEL_80E0_
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $00
 	ld b, $32
 _LABEL_80F1_:
@@ -7874,7 +7877,7 @@ _LABEL_84EC_:
 	call _LABEL_74B_CLR_C0C5
 	call _LABEL_8071_
 	call _LABEL_8512_
-	call _LABEL_807D_
+	call _LABEL_807D_CANTIPEDE_AFTER_DEATH
 	xor a
 	ld (_RAM_C020_), a
 	ld (_RAM_C034_), a
@@ -9040,7 +9043,7 @@ _LABEL_8DF1_:			;Is this some tile loading thing? Also: I was here.
 	push af
 	ld a, $01
 	call _LABEL_18C7_
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $01
 	call _LABEL_BF7_REM_SPRITES
 	ld hl, $19F2
@@ -9086,7 +9089,7 @@ _LABEL_8E61_:
 	call _LABEL_3479_
 	ld a, $01
 	call _LABEL_18A6_
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $00
 	call _LABEL_BF7_REM_SPRITES
 	call _LABEL_73D_CLEAR_C5C9
@@ -9223,15 +9226,15 @@ _LABEL_8F92_:
 	jp nz, _LABEL_8FB9_
 	ld (ix+22), $04
 	push hl
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $00
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $01
 	ld a, b
 	dec a
 	and $03
 	call _LABEL_1A11_
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $00
 	pop hl
 	ret
@@ -11442,7 +11445,7 @@ _LABEL_CF96_:
 _LABEL_CFA2_:
 	ld a, $01
 	call _LABEL_18C7_
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $01
 	call _LABEL_BF7_REM_SPRITES
 	ld hl, $19F2
@@ -11475,13 +11478,13 @@ _LABEL_CFE6_:
 	or l
 	jp nz, _LABEL_CFE6_
 _LABEL_CFF4_:
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $01
 	ld a, $01
 	call _LABEL_18A6_
 	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_BF7_REM_SPRITES
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $00
 	ret
 
@@ -11514,7 +11517,7 @@ _DATA_D02A_:
 _LABEL_D02D_:
 	ld a, $01
 	call _LABEL_18A6_
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $00
 	ld hl, _RAM_C04D_
 	ld (hl), $00
@@ -11575,13 +11578,13 @@ _LABEL_D0C3_:
 	jp z, _LABEL_D0C3_
 _LABEL_D0D8_:
 	call _LABEL_3319_DISABLE_PSG
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $01
 	ld a, $01
 	call _LABEL_18A6_
 	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_BF7_REM_SPRITES
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $00
 	ret
 
@@ -11667,15 +11670,15 @@ _LABEL_D15B_:
 	jp nz, _LABEL_D1A4_
 	ld (ix+22), $04
 	push hl
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $00
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $01
 	ld a, b
 	dec a
 	and $03
 	call _LABEL_1A11_
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $00
 	pop hl
 	ret
@@ -12412,7 +12415,7 @@ _LABEL_10388_:
 
 _LABEL_1038F_:
 	ei
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $01
 	call _LABEL_BF7_REM_SPRITES
 	ld b, $32
@@ -12452,7 +12455,7 @@ _LABEL_103DB_:
 	push af
 _LABEL_103DE_:
 	call _LABEL_BF7_REM_SPRITES
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $00
 	pop af
 	or a
@@ -14199,7 +14202,7 @@ _LABEL_112DE_:
 _LABEL_1130C_:
 	ld a, $01
 	call _LABEL_18C7_
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $01
 	call _LABEL_BF7_REM_SPRITES
 	ld hl, $19F2
@@ -14232,7 +14235,7 @@ _LABEL_11358_:
 	ld (_RAM_C07E_), hl
 	ld a, $01
 	call _LABEL_18A6_
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $00
 	ld hl, _RAM_C04D_
 	ld (hl), $00
@@ -14295,13 +14298,13 @@ _LABEL_113FA_:
 _LABEL_1140F_:
 	call _LABEL_3479_
 	call _LABEL_3319_DISABLE_PSG
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $01
 	ld a, $01
 	call _LABEL_18A6_
 	call _LABEL_73D_CLEAR_C5C9
 	call _LABEL_BF7_REM_SPRITES
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $00
 	ret
 
@@ -14383,15 +14386,15 @@ _LABEL_114AF_:
 	jp nz, _LABEL_114D9_
 	ld (ix+22), $04
 	push hl
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $00
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $01
 	ld a, b
 	dec a
 	and $03
 	call _LABEL_1A11_
-	ld hl, _RAM_C042_
+	ld hl, _RAM_C042_UPD_GAME_SPRT
 	ld (hl), $00
 	pop hl
 	ret
